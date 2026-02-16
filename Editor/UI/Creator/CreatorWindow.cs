@@ -40,6 +40,10 @@ namespace Kanameliser.ColorVariantGenerator
         private Dictionary<MaterialSlotIdentifier, ObjectField> _slotObjectFields = new Dictionary<MaterialSlotIdentifier, ObjectField>();
         private bool _previewActive;
         private HashSet<MaterialSlotIdentifier> _preExistingOverrides = new HashSet<MaterialSlotIdentifier>();
+        private List<GameObject> _ancestorChain = new List<GameObject>();
+        private GameObject _selectedVariantParent;
+        private VisualElement _parentDropdownContainer;
+        private PopupField<GameObject> _parentDropdown;
         private const string PreviewRevertModeKey = "ColorVariantGenerator.PreviewRevertMode";
 
         [MenuItem("Tools/Color Variant Prefab Generator/Creator", priority = 1000)]
@@ -120,6 +124,8 @@ namespace Kanameliser.ColorVariantGenerator
                 w._importPrefabField.tooltip = Localization.S("creator.importField.tooltip");
                 w._optionsButton.tooltip = Localization.S("creator.optionsButton.tooltip");
                 w._clearDropdownButton.tooltip = Localization.S("creator.clearDropdown.tooltip");
+                if (w._parentDropdown != null)
+                    w._parentDropdown.tooltip = Localization.S("creator.variantParent:tooltip");
                 if (w._basePrefabWarningLabel.style.display == DisplayStyle.Flex && w._currentWarningKey != null)
                     w._basePrefabWarningLabel.text = Localization.S(w._currentWarningKey);
             });

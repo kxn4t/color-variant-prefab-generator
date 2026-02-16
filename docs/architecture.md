@@ -217,6 +217,8 @@ NDMFの有無にかかわらず統一APIを提供するstaticラッパー。NDMF
 | `_overrides` | ユーザーが設定したオーバーライド（スロット→マテリアルの辞書） |
 | `_originalMaterials` | プレビューリセット用の元マテリアル |
 | `_preExistingOverrides` | ツール使用前から存在していたPrefabオーバーライド |
+| `_ancestorChain` | ベースPrefabの祖先チェーン（ルートから順、Variant Parent選択用） |
+| `_selectedVariantParent` | 生成時に使用する親Prefab（ドロップダウンで選択） |
 | `_previewActive` | Sceneプレビューが有効か |
 
 #### ファイルごとの責務
@@ -224,10 +226,10 @@ NDMFの有無にかかわらず統一APIを提供するstaticラッパー。NDMF
 | ファイル | セクション |
 |---|---|
 | `CreatorWindow.cs` | ウィンドウライフサイクル、`CreateGUI()`、Undo/Redoハンドリング |
-| `CreatorWindow.BasePrefab.cs` | Base Prefab ObjectField、Import from Prefabセクション |
+| `CreatorWindow.BasePrefab.cs` | Base Prefab ObjectField、Import from Prefabセクション、祖先チェーン構築 |
 | `CreatorWindow.MaterialSlots.cs` | スロット一覧UI、D&Dハンドリング、オーバーライド変更イベント |
 | `CreatorWindow.Preview.cs` | `ApplyPreviewMaterial()`、`ResetPreview()`、Revertモード |
-| `CreatorWindow.Output.cs` | 出力設定、バリデーション、Generateボタン、次アクションダイアログ |
+| `CreatorWindow.Output.cs` | 出力設定、Variant Parent選択ドロップダウン、バリデーション、Generateボタン、次アクションダイアログ |
 
 ### BatchGeneratorWindow (Batch Generator)
 

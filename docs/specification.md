@@ -254,6 +254,9 @@ Base Prefab (Hierarchy Instance)
 
 出力設定を行い、単一のPrefab Variantを生成する。
 
+- **Variant Parent**: ベースPrefabが多段Variant（例: Root → VariantA → VariantB）の場合に表示されるドロップダウン。生成するVariantの親となるPrefabを祖先チェーンから選択できる。デフォルトは直接の親（従来動作と同じ）。ベースPrefabがルートPrefab（Variantでない）場合は非表示。
+  - 祖先以外の親を選択した場合、中間Variantのマテリアル差分も含めてオーバーライドが自動再計算される
+  - `{BaseName}`プレースホルダーは選択した親のPrefab名に追従する
 - **Variant Name**: テキストフィールド（例:「Black」）
 - **Output Path**: デフォルトはベースPrefabと同じフォルダー。ProjectウィンドウからフォルダーをD&Dでも指定可能。
 - **Naming Template**: `{BaseName}_{VariantName}`（カスタマイズ可能）
@@ -263,7 +266,7 @@ Base Prefab (Hierarchy Instance)
 1. 入力バリデーション（ベースPrefab、バリアント名、不正文字、出力パス）
 2. オーバーライドが0件の場合は確認ダイアログ
 3. 同名ファイルが存在する場合は上書き確認
-4. Prefab Variantを生成
+4. 選択された親PrefabのPrefab Variantを生成
 5. 成功時: 生成アセットをPingし、次のアクション選択ダイアログを表示（2ボタン）:
    - **Keep Current Overrides**（OKボタン）— 現在のオーバーライドを維持して一部変更
    - **Clear Overrides**（Cancelボタン）— オーバーライド・バリアント名をクリアし、プレビューをリセットして次の色へ

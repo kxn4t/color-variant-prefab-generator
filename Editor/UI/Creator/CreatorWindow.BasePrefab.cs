@@ -116,6 +116,8 @@ namespace Kanameliser.ColorVariantGenerator
 
             _baseInstance = evt.newValue as GameObject;
             _basePrefabAsset = null;
+            _ancestorChain.Clear();
+            _selectedVariantParent = null;
             _basePrefabWarningLabel.style.display = DisplayStyle.None;
 
             if (_baseInstance != null)
@@ -144,8 +146,11 @@ namespace Kanameliser.ColorVariantGenerator
                 else
                 {
                     ScanMaterialSlots();
+                    BuildAncestorChain();
                 }
             }
+
+            UpdateParentDropdown();
 
             // Update import section enabled state
             UpdateImportSectionState();
@@ -185,6 +190,32 @@ namespace Kanameliser.ColorVariantGenerator
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Walks up the prefab variant hierarchy from _basePrefabAsset to the root,
+        /// building a list of all ancestors in root-first order.
+        /// </summary>
+        private void BuildAncestorChain()
+        {
+            _ancestorChain.Clear();
+            _selectedVariantParent = _basePrefabAsset;
+
+            if (_basePrefabAsset == null) return;
+
+            var current = _basePrefabAsset;
+            var visited = new HashSet<GameObject>();
+
+            while (current != null && visited.Add(current))
+            {
+                _ancestorChain.Add(current);
+                var parent = PrefabUtility.GetCorrespondingObjectFromSource(current);
+                if (parent == null || parent == current) break;
+                current = parent;
+            }
+
+            // Reverse to root-first order
+            _ancestorChain.Reverse();
         }
 
         // ────────────────────────────────────────────────

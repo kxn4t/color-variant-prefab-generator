@@ -102,6 +102,12 @@ msgstr "(None)"
 msgid "creator.outputSettings"
 msgstr "Output Settings"
 
+msgid "creator.variantParent"
+msgstr "Variant Parent:"
+
+msgid "creator.variantParent:tooltip"
+msgstr "Select which ancestor Prefab to use as the parent for the generated Variant"
+
 msgid "creator.variantName"
 msgstr "Variant Name:"
 

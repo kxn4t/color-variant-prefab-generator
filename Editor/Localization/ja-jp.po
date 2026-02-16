@@ -102,6 +102,12 @@ msgstr "（なし）"
 msgid "creator.outputSettings"
 msgstr "出力設定"
 
+msgid "creator.variantParent"
+msgstr "Variantの親:"
+
+msgid "creator.variantParent:tooltip"
+msgstr "生成するVariantの親として使用する祖先Prefabを選択"
+
 msgid "creator.variantName"
 msgstr "Variant名:"
 

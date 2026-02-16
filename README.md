@@ -77,6 +77,8 @@ It is also convenient for the task of assigning materials to models.
 
 > **Tip:** Drag a **Hierarchy instance** into the Base Prefab field (not an asset from the Project window). Scene preview requires an instance in the scene.
 
+> **Variant Parent:** When the base Prefab is a nested Variant (e.g., Base → Black), a **Variant Parent** dropdown appears in Output Settings. You can choose which ancestor to use as the parent for the generated Variant. This is useful for creating sibling Variants (e.g., making "Red" a direct child of "Base" instead of "Black").
+
 > **Import from Prefab:** You can also load material configurations from an existing Prefab via the options menu (▼) on the Base Prefab field. Material differences are automatically detected and populated into the override slots.
 
 > **Folder Assignment:** You can also assign Output Path and Material Folder by dragging and dropping a folder from the Project window.
