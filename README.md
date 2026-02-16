@@ -52,7 +52,7 @@ Both tools are accessible from the menu bar: **Tools > Color Variant Prefab Gene
    Finalize the material setup while checking the scene preview.
 
 2. Bulk-deploy the completed color variants to another avatar (Batch Generator)
-   Specify the new avatar's base Prefab (e.g., Airi_HonmeiKnit),
+   Specify a base Prefab with MA, PB, and other setup already completed for the new avatar (e.g., Airi_HonmeiKnit),
    add the color variant Prefabs from step 1 as sources in bulk.
    Material differences are auto-detected and Prefab Variants for all colors are generated at once.
 ```
