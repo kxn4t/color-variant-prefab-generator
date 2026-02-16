@@ -98,6 +98,7 @@ namespace Kanameliser.ColorVariantGenerator
             {
                 outputPath = GetDefaultOutputPath() ?? "";
             }
+            outputPath = EditorUIUtility.NormalizePath(outputPath);
 
             if (_outputPreviewLabel != null)
                 _outputPreviewLabel.text = Localization.S("creator.output.preview", outputPath, fileName);

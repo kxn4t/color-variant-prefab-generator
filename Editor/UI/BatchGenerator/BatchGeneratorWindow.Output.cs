@@ -115,7 +115,7 @@ namespace Kanameliser.ColorVariantGenerator
             {
                 outputPath = GetDefaultOutputPath() ?? "";
             }
-            return outputPath;
+            return EditorUIUtility.NormalizePath(outputPath);
         }
 
         // ────────────────────────────────────────────────
