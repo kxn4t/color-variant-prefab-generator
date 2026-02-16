@@ -1,0 +1,15 @@
+{
+  "name": "net.kanameliser.color-variant-generator",
+  "version": "0.1.0",
+  "displayName": "Color Variant Prefab Generator",
+  "description": "Generate color variation Prefab Variants for VRChat outfits by batch material swapping",
+  "unity": "2022.3",
+  "author": {
+    "name": "kxn4t",
+    "url": "https://github.com/kxn4t"
+  },
+  "license": "MIT",
+  "licenseUrl": "https://github.com/kxn4t/kanameliser-color-variant-generator/blob/main/LICENSE",
+  "changelogUrl": "https://github.com/kxn4t/kanameliser-color-variant-generator/blob/main/CHANGELOG.md",
+  "vpmDependencies": {}
+}

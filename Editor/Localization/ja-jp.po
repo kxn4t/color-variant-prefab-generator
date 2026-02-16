@@ -1,0 +1,317 @@
+msgid ""
+msgstr ""
+"Language: ja-jp\n"
+
+# ── 共通 ──
+
+msgid "common.outputPath"
+msgstr "出力先:"
+
+msgid "common.naming"
+msgstr "命名規則:"
+
+msgid "common.selectOutputFolder"
+msgstr "出力フォルダーを選択"
+
+msgid "common.error"
+msgstr "エラー"
+
+msgid "common.warning"
+msgstr "警告"
+
+msgid "common.cancel"
+msgstr "キャンセル"
+
+msgid "common.continue"
+msgstr "続行"
+
+msgid "common.overwrite"
+msgstr "上書き"
+
+msgid "common.overwriteAll"
+msgstr "すべて上書き"
+
+msgid "common.error.outputFolderInvalid"
+msgstr "出力フォルダーはプロジェクトのAssetsフォルダー内に指定してください。"
+
+msgid "common.error.outputPathInvalid"
+msgstr "出力先はプロジェクトのAssetsフォルダー内に指定してください。"
+
+msgid "common.fileExists"
+msgstr "ファイルが存在します"
+
+#, csharp-format
+msgid "common.fileExists.message"
+msgstr "'{0}.prefab'は既に存在します。上書きしますか？"
+
+msgid "common.filesExist"
+msgstr "ファイルが存在します"
+
+#, csharp-format
+msgid "common.filesExist.message"
+msgstr "以下のファイルは既に存在するため、上書きされます:\n\n{0}"
+
+# ── Creator ──
+
+msgid "creator.basePrefab"
+msgstr "ベースPrefab（Hierarchy上のインスタンス）"
+
+msgid "creator.basePrefab:tooltip"
+msgstr "HierarchyからPrefabインスタンスをドラッグしてください"
+
+msgid "creator.menu.importFromPrefab"
+msgstr "Prefabからインポート"
+
+msgid "creator.importFromPrefab"
+msgstr "Prefabからインポート"
+
+msgid "creator.import.message"
+msgstr "インポートするにはベースPrefabを先に設定してください。"
+
+msgid "creator.import.apply"
+msgstr "適用"
+
+msgid "creator.import.apply:tooltip"
+msgstr "選択したPrefabのマテリアル設定を適用"
+
+msgid "creator.optionsButton.tooltip"
+msgstr "オプション"
+
+msgid "creator.importField.tooltip"
+msgstr "インポートするPrefabアセットをドラッグしてください"
+
+msgid "creator.warning.notSceneInstance"
+msgstr "Projectウィンドウのアセットではなく、HierarchyのPrefabインスタンスを選択してください。"
+
+msgid "creator.warning.notPrefabInstance"
+msgstr "選択されたオブジェクトはPrefabインスタンスではありません。Prefab Variantの生成にはPrefabインスタンスが必要です。"
+
+msgid "creator.materialSlots"
+msgstr "マテリアルスロット"
+
+#, csharp-format
+msgid "creator.materialSlots.info"
+msgstr "マテリアルスロット（{0} renderers, {1} slots）"
+
+msgid "creator.materialSlots.noRenderers"
+msgstr "このPrefabにRendererが見つかりません。"
+
+msgid "creator.materialSlots.none"
+msgstr "（なし）"
+
+msgid "creator.outputSettings"
+msgstr "出力設定"
+
+msgid "creator.variantName"
+msgstr "Variant名:"
+
+#, csharp-format
+msgid "creator.output.preview"
+msgstr "出力先: {0}/{1}.prefab"
+
+msgid "creator.generate"
+msgstr "Prefab Variantを生成"
+
+msgid "creator.clearOverrides.tooltip"
+msgstr "すべてのマテリアルオーバーライドをクリア"
+
+msgid "creator.slotClear.tooltip"
+msgstr "オーバーライドをクリア"
+
+msgid "creator.clearDropdown.tooltip"
+msgstr "Prefab Revertモードを選択"
+
+msgid "creator.revertMode.visualOnly"
+msgstr "表示のみ — Prefabオーバーライドを元に戻さずマテリアルを復元"
+
+msgid "creator.revertMode.selectiveRevert"
+msgstr "選択的Revert — ツールが設定したオーバーライドのみ元に戻す"
+
+msgid "creator.revertMode.fullRevert"
+msgstr "完全Revert — 対象Rendererのすべてのオーバーライドを元に戻す"
+
+msgid "creator.clearButton.selectiveRevert"
+msgstr "クリア & 選択的Revert"
+
+msgid "creator.clearButton.fullRevert"
+msgstr "クリア & 完全Revert"
+
+msgid "creator.clearButton.default"
+msgstr "オーバーライドをクリア"
+
+msgid "creator.error.noBasePrefab"
+msgstr "ベースPrefabが選択されていません。"
+
+msgid "creator.error.noSourcePrefab"
+msgstr "インポート元のPrefabが選択されていません。"
+
+msgid "creator.error.notPrefabAsset"
+msgstr "選択されたオブジェクトはPrefabアセットではありません。"
+
+msgid "creator.error.variantNameEmpty"
+msgstr "Variant名が空です。"
+
+msgid "creator.error.variantNameInvalid"
+msgstr "Variant名に無効な文字が含まれています。"
+
+msgid "creator.warning.noOverrides"
+msgstr "マテリアルオーバーライドが設定されていません。生成されるVariantはベースPrefabと同一になります。続行しますか？"
+
+msgid "creator.generateAnyway"
+msgstr "生成する"
+
+msgid "creator.success"
+msgstr "成功"
+
+#, csharp-format
+msgid "creator.success.message"
+msgstr "Prefab Variantを生成しました:\n{0}\n\n現在のオーバーライドをクリアしますか？\n（Revertモード: {1}）"
+
+msgid "creator.success.clearOverrides"
+msgstr "オーバーライドをクリア"
+
+msgid "creator.success.keepOverrides"
+msgstr "オーバーライドを保持"
+
+#, csharp-format
+msgid "creator.error.generateFailed"
+msgstr "Prefab Variantの生成に失敗しました:\n{0}"
+
+# ── マテリアルブラウザー ──
+
+msgid "browser.title"
+msgstr "マテリアルブラウザー"
+
+msgid "browser.root"
+msgstr "ルート:"
+
+msgid "browser.selectRootFolder"
+msgstr "マテリアルのルートフォルダーを選択"
+
+msgid "browser.emptyNoFolder"
+msgstr "マテリアルを表示するルートフォルダーを選択してください。"
+
+msgid "browser.emptyNoMaterials"
+msgstr "選択したフォルダーにマテリアルが見つかりません。"
+
+msgid "browser.rootFolder"
+msgstr "（ルート）"
+
+msgid "browser.refresh.tooltip"
+msgstr "マテリアル一覧とプレビューを更新"
+
+# ── Batch Generator ──
+
+msgid "batch.newBasePrefab"
+msgstr "新しいベースPrefab"
+
+msgid "batch.basePrefabField.tooltip"
+msgstr "新しいベースPrefabアセット（Projectウィンドウから選択）"
+
+msgid "batch.newBasePrefab.help"
+msgstr "ベースとなるPrefabを指定したあと、作成したい差分のカラーバリアントを追加してください。"
+
+msgid "batch.variantList"
+msgstr "カラーバリアント"
+
+msgid "batch.addVariant"
+msgstr "+ Variantを追加"
+
+msgid "batch.variantName.tooltip"
+msgstr "出力ファイル名に使用するVariant名"
+
+msgid "batch.variantEdit.tooltip"
+msgstr "Variant名を編集"
+
+msgid "batch.variantField.tooltip"
+msgstr "異なるマテリアルを持つソースPrefab"
+
+msgid "batch.variantRemove.tooltip"
+msgstr "このVariantを削除"
+
+msgid "batch.variantList.placeholder"
+msgstr "Prefabをここにドラッグ＆ドロップするか、「+ Variantを追加」をクリック"
+
+msgid "batch.outputSettings"
+msgstr "出力設定"
+
+msgid "batch.generate"
+msgstr "Prefab Variantを一括生成"
+
+msgid "batch.matching"
+msgstr "マッチング結果"
+
+msgid "batch.matching.empty"
+msgstr "マッチング結果がありません。ベースPrefabを設定し、Variantを追加してください。"
+
+#, csharp-format
+msgid "batch.matching.summary"
+msgstr "{0}/{1} Variantsが完全一致"
+
+msgid "batch.matching.unnamed"
+msgstr "（名前なし）"
+
+#, csharp-format
+msgid "batch.matching.variantSummary"
+msgstr "{0}（{1}/{2} 一致）"
+
+#, csharp-format
+msgid "batch.matching.unmatched"
+msgstr "未一致（{0}）"
+
+#, csharp-format
+msgid "batch.matching.matched"
+msgstr "一致（{0}）"
+
+msgid "batch.matching.unmatchedChoice"
+msgstr "（未一致）"
+
+msgid "batch.matching.exclude"
+msgstr "除外"
+
+msgid "batch.matching.excludeTooltip"
+msgstr "このスロットを生成から除外"
+
+#, csharp-format
+msgid "batch.variantList.overrides"
+msgstr "{0}件のオーバーライド"
+
+#, csharp-format
+msgid "batch.variantList.overridesTooltip"
+msgstr "{0}件のマテリアル差分を検出"
+
+msgid "batch.error.noBasePrefab"
+msgstr "新しいベースPrefabが選択されていません。"
+
+msgid "batch.error.noValidSources"
+msgstr "有効なソースPrefabが追加されていません。"
+
+#, csharp-format
+msgid "batch.warning.unmatchedSlots"
+msgstr "{0}個のスロットが未一致のためスキップされます。続行しますか？"
+
+msgid "batch.error.noOverrides"
+msgstr "マッチング後に適用するマテリアルオーバーライドがありません。"
+
+msgid "batch.result"
+msgstr "一括生成結果"
+
+#, csharp-format
+msgid "batch.result.message"
+msgstr "一括生成が完了しました！\n\n成功: {0}\n失敗: {1}"
+
+#, csharp-format
+msgid "batch.result.messageWithErrors"
+msgstr "一括生成が完了しました！\n\n成功: {0}\n失敗: {1}\n\nエラー:\n{2}"
+
+msgid "batch.options"
+msgstr "オプション:"
+
+msgid "batch.allowEmptyOverrides"
+msgstr "マテリアル差分がないVariantも作成する"
+
+msgid "batch.allowEmptyOverrides:tooltip"
+msgstr "マテリアル差分が検出されなくてもPrefab Variantを生成します。ベースPrefabを別フォルダに分けて管理したい場合に便利です。"
+
+msgid "batch.output.preview"
+msgstr "出力ファイル:"

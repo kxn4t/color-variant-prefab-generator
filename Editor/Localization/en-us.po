@@ -1,0 +1,317 @@
+msgid ""
+msgstr ""
+"Language: en-us\n"
+
+# ── Common ──
+
+msgid "common.outputPath"
+msgstr "Output Path:"
+
+msgid "common.naming"
+msgstr "Naming:"
+
+msgid "common.selectOutputFolder"
+msgstr "Select Output Folder"
+
+msgid "common.error"
+msgstr "Error"
+
+msgid "common.warning"
+msgstr "Warning"
+
+msgid "common.cancel"
+msgstr "Cancel"
+
+msgid "common.continue"
+msgstr "Continue"
+
+msgid "common.overwrite"
+msgstr "Overwrite"
+
+msgid "common.overwriteAll"
+msgstr "Overwrite All"
+
+msgid "common.error.outputFolderInvalid"
+msgstr "Output folder must be inside the project's Assets folder."
+
+msgid "common.error.outputPathInvalid"
+msgstr "Output path must be inside the project's Assets folder."
+
+msgid "common.fileExists"
+msgstr "File Exists"
+
+#, csharp-format
+msgid "common.fileExists.message"
+msgstr "'{0}.prefab' already exists at the output path. Overwrite?"
+
+msgid "common.filesExist"
+msgstr "Files Exist"
+
+#, csharp-format
+msgid "common.filesExist.message"
+msgstr "The following files already exist and will be overwritten:\n\n{0}"
+
+# ── Creator ──
+
+msgid "creator.basePrefab"
+msgstr "Base Prefab (Hierarchy Instance)"
+
+msgid "creator.basePrefab:tooltip"
+msgstr "Drag a Prefab instance from the Hierarchy here"
+
+msgid "creator.menu.importFromPrefab"
+msgstr "Import from Prefab"
+
+msgid "creator.importFromPrefab"
+msgstr "Import from Prefab"
+
+msgid "creator.import.message"
+msgstr "Set a Base Prefab first to enable import."
+
+msgid "creator.import.apply"
+msgstr "Apply"
+
+msgid "creator.import.apply:tooltip"
+msgstr "Apply material settings from the selected Prefab"
+
+msgid "creator.optionsButton.tooltip"
+msgstr "Options"
+
+msgid "creator.importField.tooltip"
+msgstr "Drag a Prefab asset to import its material settings"
+
+msgid "creator.warning.notSceneInstance"
+msgstr "Please select a Prefab instance from the Hierarchy, not a Prefab asset from the Project window."
+
+msgid "creator.warning.notPrefabInstance"
+msgstr "Selected object is not a Prefab instance. Prefab Variant generation requires a Prefab instance."
+
+msgid "creator.materialSlots"
+msgstr "Material Slots"
+
+#, csharp-format
+msgid "creator.materialSlots.info"
+msgstr "Material Slots ({0} renderers, {1} slots)"
+
+msgid "creator.materialSlots.noRenderers"
+msgstr "No Renderers found on this Prefab."
+
+msgid "creator.materialSlots.none"
+msgstr "(None)"
+
+msgid "creator.outputSettings"
+msgstr "Output Settings"
+
+msgid "creator.variantName"
+msgstr "Variant Name:"
+
+#, csharp-format
+msgid "creator.output.preview"
+msgstr "Output: {0}/{1}.prefab"
+
+msgid "creator.generate"
+msgstr "Generate Prefab Variant"
+
+msgid "creator.clearOverrides.tooltip"
+msgstr "Clear all material overrides"
+
+msgid "creator.slotClear.tooltip"
+msgstr "Clear override"
+
+msgid "creator.clearDropdown.tooltip"
+msgstr "Select Prefab revert mode"
+
+msgid "creator.revertMode.visualOnly"
+msgstr "Visual Only — Restore materials without reverting Prefab overrides"
+
+msgid "creator.revertMode.selectiveRevert"
+msgstr "Selective Revert — Revert only tool-introduced Prefab overrides"
+
+msgid "creator.revertMode.fullRevert"
+msgstr "Full Revert — Revert all Prefab overrides on affected Renderers"
+
+msgid "creator.clearButton.selectiveRevert"
+msgstr "Clear & Selective Revert"
+
+msgid "creator.clearButton.fullRevert"
+msgstr "Clear & Full Revert"
+
+msgid "creator.clearButton.default"
+msgstr "Clear Overrides"
+
+msgid "creator.error.noBasePrefab"
+msgstr "No base Prefab selected."
+
+msgid "creator.error.noSourcePrefab"
+msgstr "No source Prefab selected for import."
+
+msgid "creator.error.notPrefabAsset"
+msgstr "Selected object is not a Prefab asset."
+
+msgid "creator.error.variantNameEmpty"
+msgstr "Variant name is empty."
+
+msgid "creator.error.variantNameInvalid"
+msgstr "Variant name contains invalid characters."
+
+msgid "creator.warning.noOverrides"
+msgstr "No material overrides defined. The generated Variant will be identical to the base Prefab. Continue?"
+
+msgid "creator.generateAnyway"
+msgstr "Generate Anyway"
+
+msgid "creator.success"
+msgstr "Success"
+
+#, csharp-format
+msgid "creator.success.message"
+msgstr "Prefab Variant generated:\n{0}\n\nClear current overrides?\nRevert mode: {1}"
+
+msgid "creator.success.clearOverrides"
+msgstr "Clear Overrides"
+
+msgid "creator.success.keepOverrides"
+msgstr "Keep Overrides"
+
+#, csharp-format
+msgid "creator.error.generateFailed"
+msgstr "Failed to generate Prefab Variant:\n{0}"
+
+# ── Material Browser ──
+
+msgid "browser.title"
+msgstr "Material Browser"
+
+msgid "browser.root"
+msgstr "Root:"
+
+msgid "browser.selectRootFolder"
+msgstr "Select Material Root Folder"
+
+msgid "browser.emptyNoFolder"
+msgstr "Select a root folder to browse materials."
+
+msgid "browser.emptyNoMaterials"
+msgstr "No materials found in the selected folder."
+
+msgid "browser.rootFolder"
+msgstr "(root)"
+
+msgid "browser.refresh.tooltip"
+msgstr "Refresh material list and previews"
+
+# ── Batch Generator ──
+
+msgid "batch.newBasePrefab"
+msgstr "New Base Prefab"
+
+msgid "batch.basePrefabField.tooltip"
+msgstr "New base Prefab asset (select from Project window)"
+
+msgid "batch.newBasePrefab.help"
+msgstr "Specify a base Prefab, then add the Color Variants you want to create."
+
+msgid "batch.variantList"
+msgstr "Color Variants"
+
+msgid "batch.addVariant"
+msgstr "+ Add Variant"
+
+msgid "batch.variantName.tooltip"
+msgstr "Variant name used for output file naming"
+
+msgid "batch.variantEdit.tooltip"
+msgstr "Edit variant name"
+
+msgid "batch.variantField.tooltip"
+msgstr "A source Prefab with different materials"
+
+msgid "batch.variantRemove.tooltip"
+msgstr "Remove this variant"
+
+msgid "batch.variantList.placeholder"
+msgstr "Drag & drop Prefabs here, or click \"+ Add Variant\""
+
+msgid "batch.outputSettings"
+msgstr "Output Settings"
+
+msgid "batch.generate"
+msgstr "Batch Generate Prefab Variants"
+
+msgid "batch.matching"
+msgstr "Matching Results"
+
+msgid "batch.matching.empty"
+msgstr "No matching results yet. Set a base Prefab and add variants."
+
+#, csharp-format
+msgid "batch.matching.summary"
+msgstr "{0}/{1} variants fully matched"
+
+msgid "batch.matching.unnamed"
+msgstr "(unnamed)"
+
+#, csharp-format
+msgid "batch.matching.variantSummary"
+msgstr "{0} ({1}/{2} matched)"
+
+#, csharp-format
+msgid "batch.matching.unmatched"
+msgstr "Unmatched ({0})"
+
+#, csharp-format
+msgid "batch.matching.matched"
+msgstr "Matched ({0})"
+
+msgid "batch.matching.unmatchedChoice"
+msgstr "(Unmatched)"
+
+msgid "batch.matching.exclude"
+msgstr "Exclude"
+
+msgid "batch.matching.excludeTooltip"
+msgstr "Skip this slot in generation"
+
+#, csharp-format
+msgid "batch.variantList.overrides"
+msgstr "{0} overrides"
+
+#, csharp-format
+msgid "batch.variantList.overridesTooltip"
+msgstr "{0} material difference(s) detected"
+
+msgid "batch.error.noBasePrefab"
+msgstr "No new base Prefab selected."
+
+msgid "batch.error.noValidSources"
+msgstr "No valid source Prefabs added."
+
+#, csharp-format
+msgid "batch.warning.unmatchedSlots"
+msgstr "{0} slot(s) are unmatched and will be skipped. Continue?"
+
+msgid "batch.error.noOverrides"
+msgstr "No material overrides to apply after matching."
+
+msgid "batch.result"
+msgstr "Batch Generation Result"
+
+#, csharp-format
+msgid "batch.result.message"
+msgstr "Batch generation complete!\n\nSuccess: {0}\nFailed: {1}"
+
+#, csharp-format
+msgid "batch.result.messageWithErrors"
+msgstr "Batch generation complete!\n\nSuccess: {0}\nFailed: {1}\n\nErrors:\n{2}"
+
+msgid "batch.options"
+msgstr "Options:"
+
+msgid "batch.allowEmptyOverrides"
+msgstr "Create variants without material differences"
+
+msgid "batch.allowEmptyOverrides:tooltip"
+msgstr "Generate Prefab Variants even when no material differences are detected. Useful for separating the base Prefab into a different folder."
+
+msgid "batch.output.preview"
+msgstr "Output files:"

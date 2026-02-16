@@ -1,0 +1,24 @@
+{
+    "name": "Kanameliser.ColorVariantGenerator.Editor",
+    "rootNamespace": "Kanameliser.ColorVariantGenerator",
+    "references": [
+        "nadena.dev.ndmf"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [
+        {
+            "name": "nadena.dev.ndmf",
+            "expression": "[1.11.0,2.0.0)",
+            "define": "CVG_HAS_NDMF"
+        }
+    ],
+    "noEngineReferences": false
+}

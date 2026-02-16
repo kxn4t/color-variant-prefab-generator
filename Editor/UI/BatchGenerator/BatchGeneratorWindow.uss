@@ -1,0 +1,318 @@
+/* Color Variant Batch Generator Window Styles */
+
+/* Language switcher */
+.language-switcher {
+    margin-bottom: 8px;
+}
+
+/* Main container */
+.main-container {
+    padding: 10px;
+    flex-grow: 1;
+}
+
+/* Section styles */
+.section-container {
+    margin-bottom: 10px;
+    padding: 10px;
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+}
+
+.section-label {
+    -unity-font-style: bold;
+    margin-bottom: 5px;
+    font-size: 13px;
+}
+
+/* Info box */
+.info-box {
+    padding: 6px 8px;
+    margin-bottom: 8px;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 11px;
+    background-color: rgba(100, 150, 255, 0.08);
+    border-radius: 3px;
+    white-space: normal;
+}
+
+/* Base prefab section */
+.base-prefab-row {
+    flex-direction: row;
+    align-items: center;
+}
+
+.base-prefab-field {
+    flex-grow: 1;
+    flex-shrink: 1;
+    min-width: 0;
+}
+
+/* Variant list section */
+.variant-list-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+}
+
+.add-variant-button {
+    height: 22px;
+    padding-left: 8px;
+    padding-right: 8px;
+}
+
+.variant-list-container {
+    border-width: 1px;
+    border-color: rgba(0, 0, 0, 0.3);
+    border-radius: 3px;
+    min-height: 28px;
+}
+
+.variant-list-placeholder {
+    padding: 8px;
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 11px;
+    -unity-text-align: middle-center;
+    -unity-font-style: italic;
+}
+
+/* Variant list section: border needed for drag hover visibility */
+.variant-list-section {
+    border-width: 1px;
+    border-color: transparent;
+}
+
+.variant-list-section-drag-hover {
+    border-color: rgba(100, 150, 255, 0.8);
+    background-color: rgba(100, 150, 255, 0.1);
+}
+
+.variant-row {
+    flex-direction: row;
+    align-items: center;
+    padding: 3px 6px;
+    border-bottom-width: 1px;
+    border-bottom-color: rgba(0, 0, 0, 0.1);
+}
+
+.variant-row:hover {
+    background-color: rgba(255, 255, 255, 0.03);
+}
+
+.variant-name-label {
+    width: 120px;
+    flex-shrink: 0;
+    margin-right: 4px;
+    -unity-text-align: middle-left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.variant-name-field {
+    width: 144px;
+    flex-shrink: 0;
+    margin-right: 4px;
+}
+
+.variant-edit-button {
+    width: 20px;
+    height: 20px;
+    margin-left: 0;
+    margin-right: 4px;
+    flex-shrink: 0;
+    font-size: 11px;
+    padding: 0;
+    -unity-text-align: middle-center;
+}
+
+.variant-field {
+    flex-grow: 1;
+    flex-shrink: 1;
+    min-width: 0;
+}
+
+.variant-override-label {
+    margin-left: 6px;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 10px;
+    flex-shrink: 0;
+    min-width: 85px;
+    -unity-text-align: middle-right;
+}
+
+.variant-remove-button {
+    width: 22px;
+    height: 22px;
+    margin-left: 4px;
+    flex-shrink: 0;
+    font-size: 12px;
+    padding: 0;
+    -unity-text-align: middle-center;
+}
+
+/* Match results section */
+.match-results-section {
+    flex-shrink: 0;
+}
+
+.match-empty-label {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 11px;
+}
+
+.match-results-foldout > .unity-foldout__toggle > .unity-foldout__text {
+    -unity-font-style: bold;
+    font-size: 13px;
+}
+
+.match-summary-warning > .unity-foldout__toggle > .unity-foldout__text {
+    color: #e8a040;
+}
+
+.match-results-container {
+    border-width: 1px;
+    border-color: rgba(0, 0, 0, 0.3);
+    border-radius: 3px;
+}
+
+.unmatched-header {
+    padding: 4px 8px;
+    background-color: rgba(232, 160, 64, 0.15);
+    -unity-font-style: bold;
+    font-size: 12px;
+    color: #e8a040;
+}
+
+.matched-foldout {
+    margin-top: 4px;
+}
+
+.match-row {
+    flex-direction: row;
+    align-items: center;
+    padding: 3px 8px;
+    border-bottom-width: 1px;
+    border-bottom-color: rgba(0, 0, 0, 0.1);
+    min-height: 24px;
+}
+
+.match-row-unmatched {
+    background-color: rgba(232, 160, 64, 0.05);
+}
+
+.match-row-matched {
+    opacity: 0.8;
+}
+
+.match-source-label {
+    width: 40%;
+    flex-shrink: 0;
+    -unity-text-align: middle-left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.match-arrow {
+    width: 16px;
+    flex-shrink: 0;
+    margin-left: 8px;
+    margin-right: 8px;
+    color: rgba(255, 255, 255, 0.5);
+    -unity-text-align: middle-center;
+}
+
+.match-target-label {
+    flex-grow: 1;
+    flex-shrink: 1;
+    flex-basis: 0;
+    -unity-text-align: middle-left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.match-target-dropdown {
+    flex-grow: 1;
+    flex-shrink: 1;
+    flex-basis: 0;
+    min-width: 0;
+}
+
+.match-priority-label {
+    margin-left: 8px;
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 10px;
+    min-width: 80px;
+}
+
+.match-exclude-button {
+    margin-left: 4px;
+    height: 20px;
+    padding-left: 6px;
+    padding-right: 6px;
+    font-size: 10px;
+}
+
+/* Per-variant match group */
+.variant-match-foldout {
+    margin-bottom: 4px;
+    padding: 2px 0;
+    border-bottom-width: 1px;
+    border-bottom-color: rgba(0, 0, 0, 0.15);
+}
+
+.variant-match-foldout--warning > .unity-foldout__toggle > .unity-foldout__text {
+    color: #e8a040;
+}
+
+/* Output section */
+.output-section {
+    margin-bottom: 10px;
+}
+
+.output-row {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.output-label {
+    width: 110px;
+    -unity-text-align: middle-left;
+}
+
+.output-field {
+    flex-grow: 1;
+    flex-shrink: 1;
+    min-width: 0;
+}
+
+.browser-browse-button {
+    width: 28px;
+    flex-shrink: 0;
+    margin-left: 2px;
+}
+
+.output-preview-label {
+    margin-top: 4px;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 11px;
+    white-space: normal;
+}
+
+/* Action buttons */
+.action-section {
+    flex-direction: row;
+    justify-content: flex-end;
+    margin-top: 5px;
+    margin-bottom: 10px;
+}
+
+.generate-button {
+    height: 30px;
+    min-width: 250px;
+    -unity-font-style: bold;
+}
