@@ -116,7 +116,7 @@ namespace Kanameliser.ColorVariantGenerator
             var row = new VisualElement();
             row.AddToClassList("slot-row");
 
-            bool hasOverride = _overrides.ContainsKey(slot.identifier) && _overrides[slot.identifier] != null;
+            bool hasOverride = _overrides.TryGetValue(slot.identifier, out var currentOverride) && currentOverride != null;
             if (!hasOverride)
             {
                 row.AddToClassList("slot-row-unchanged");
@@ -148,7 +148,7 @@ namespace Kanameliser.ColorVariantGenerator
             overridePreview.AddToClassList("slot-override-preview");
             if (hasOverride)
             {
-                EditorUIUtility.SetMaterialPreview(overridePreview, _overrides[slot.identifier]);
+                EditorUIUtility.SetMaterialPreview(overridePreview, currentOverride);
             }
             row.Add(overridePreview);
 

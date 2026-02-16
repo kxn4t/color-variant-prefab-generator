@@ -70,6 +70,15 @@ namespace Kanameliser.ColorVariantGenerator
             // Track already-matched targets to prevent multiple sources mapping to the same slot
             var matchedTargetKeys = new HashSet<string>();
 
+            // Build a lookup for O(1) access to target slot data by key
+            var targetSlotLookup = new Dictionary<string, ScannedMaterialSlot>(targetSlots.Count);
+            foreach (var ts in targetSlots)
+            {
+                var key = ts.identifier.GetLookupKey();
+                if (!targetSlotLookup.ContainsKey(key))
+                    targetSlotLookup[key] = ts;
+            }
+
             foreach (var sourceSlot in sourceSlots)
             {
                 var match = TryMatch(sourceSlot.identifier, sourceSlot.baseMaterial, targetSlots, matchedTargetKeys);
@@ -95,8 +104,8 @@ namespace Kanameliser.ColorVariantGenerator
                 matchedTargetKeys.Add(targetId.GetLookupKey());
 
                 // Find the target's current material
-                var targetSlot = targetSlots.FirstOrDefault(s => s.identifier.GetLookupKey() == targetId.GetLookupKey());
-                if (targetSlot == null) continue;
+                if (!targetSlotLookup.TryGetValue(targetId.GetLookupKey(), out var targetSlot))
+                    continue;
 
                 // Only include if materials differ
                 if (sourceSlot.baseMaterial != targetSlot.baseMaterial)
@@ -197,16 +206,13 @@ namespace Kanameliser.ColorVariantGenerator
                 if (byMaterial.Count > 1) candidates = byMaterial;
             }
 
-            // Prefer closest hierarchy depth
+            // Prefer closest hierarchy depth, then tiebreak by path similarity (Levenshtein distance)
             int sourceDepth = sourceSlot.hierarchyDepth;
-            candidates = candidates.OrderBy(c => Math.Abs(c.identifier.hierarchyDepth - sourceDepth)).ToList();
-
-            // Tiebreak by path similarity (Levenshtein distance)
-            if (candidates.Count > 1)
-            {
-                string sourcePath = sourceSlot.rendererPath ?? "";
-                candidates = candidates.OrderBy(c => LevenshteinDistance(sourcePath, c.identifier.rendererPath ?? "")).ToList();
-            }
+            string sourcePath = sourceSlot.rendererPath ?? "";
+            candidates = candidates
+                .OrderBy(c => Math.Abs(c.identifier.hierarchyDepth - sourceDepth))
+                .ThenBy(c => LevenshteinDistance(sourcePath, c.identifier.rendererPath ?? ""))
+                .ToList();
 
             return candidates[0];
         }

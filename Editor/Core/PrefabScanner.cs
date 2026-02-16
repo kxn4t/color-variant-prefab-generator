@@ -63,10 +63,11 @@ namespace Kanameliser.ColorVariantGenerator
 
             while (current != null && current != root)
             {
-                parts.Insert(0, current.name);
+                parts.Add(current.name);
                 current = current.parent;
             }
 
+            parts.Reverse();
             return string.Join("/", parts);
         }
     }

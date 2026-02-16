@@ -218,14 +218,7 @@ namespace Kanameliser.ColorVariantGenerator
                 }
             }
 
-            if (overridesList.Count == 0)
-            {
-                bool proceed = EditorUtility.DisplayDialog(
-                    Localization.S("common.warning"),
-                    Localization.S("creator.warning.noOverrides"),
-                    Localization.S("creator.generateAnyway"), Localization.S("common.cancel"));
-                if (!proceed) return null;
-            }
+            if (!ConfirmEmptyOverrides(overridesList)) return null;
 
             return overridesList;
         }
@@ -273,16 +266,24 @@ namespace Kanameliser.ColorVariantGenerator
                 }
             }
 
-            if (overridesList.Count == 0)
-            {
-                bool proceed = EditorUtility.DisplayDialog(
-                    Localization.S("common.warning"),
-                    Localization.S("creator.warning.noOverrides"),
-                    Localization.S("creator.generateAnyway"), Localization.S("common.cancel"));
-                if (!proceed) return null;
-            }
+            if (!ConfirmEmptyOverrides(overridesList)) return null;
 
             return overridesList;
+        }
+
+        /// <summary>
+        /// Shows a confirmation dialog when no overrides are set.
+        /// Returns true to proceed, false to cancel.
+        /// </summary>
+        private static bool ConfirmEmptyOverrides(List<MaterialOverride> overridesList)
+        {
+            if (overridesList.Count > 0) return true;
+
+            return EditorUtility.DisplayDialog(
+                Localization.S("common.warning"),
+                Localization.S("creator.warning.noOverrides"),
+                Localization.S("creator.generateAnyway"),
+                Localization.S("common.cancel"));
         }
 
         private void ExecuteGeneration(GameObject parentPrefab, List<MaterialOverride> overridesList, string variantName, string outputPath, string namingTemplate)

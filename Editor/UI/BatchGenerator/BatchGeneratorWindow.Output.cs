@@ -33,31 +33,7 @@ namespace Kanameliser.ColorVariantGenerator
                 out _namingTemplateField, UpdateOutputPreview));
 
             // Allow empty overrides toggle
-            var toggleRow = new VisualElement();
-            toggleRow.AddToClassList("output-row");
-
-            var toggleRowLabel = new Label("batch.options");
-            toggleRowLabel.AddToClassList("output-label");
-            toggleRowLabel.AddToClassList("ndmf-tr");
-            toggleRow.Add(toggleRowLabel);
-
-            var allowEmptyToggle = new Toggle();
-            allowEmptyToggle.labelElement.style.display = DisplayStyle.None;
-            allowEmptyToggle.style.flexShrink = 0;
-            allowEmptyToggle.RegisterValueChangedCallback(evt =>
-            {
-                _allowEmptyOverrides = evt.newValue;
-                UpdateGenerateButtonState();
-                UpdateOutputPreview();
-            });
-            toggleRow.Add(allowEmptyToggle);
-
-            var toggleLabel = new Label("batch.allowEmptyOverrides");
-            toggleLabel.AddToClassList("ndmf-tr");
-            toggleLabel.RegisterCallback<ClickEvent>(_ => allowEmptyToggle.value = !allowEmptyToggle.value);
-            toggleRow.Add(toggleLabel);
-
-            section.Add(toggleRow);
+            section.Add(CreateAllowEmptyToggleRow());
 
             // Preview
             _outputPreviewLabel = new Label();
@@ -65,6 +41,35 @@ namespace Kanameliser.ColorVariantGenerator
             section.Add(_outputPreviewLabel);
 
             container.Add(section);
+        }
+
+        private VisualElement CreateAllowEmptyToggleRow()
+        {
+            var row = new VisualElement();
+            row.AddToClassList("output-row");
+
+            var rowLabel = new Label("batch.options");
+            rowLabel.AddToClassList("output-label");
+            rowLabel.AddToClassList("ndmf-tr");
+            row.Add(rowLabel);
+
+            var toggle = new Toggle();
+            toggle.labelElement.style.display = DisplayStyle.None;
+            toggle.style.flexShrink = 0;
+            toggle.RegisterValueChangedCallback(evt =>
+            {
+                _allowEmptyOverrides = evt.newValue;
+                UpdateGenerateButtonState();
+                UpdateOutputPreview();
+            });
+            row.Add(toggle);
+
+            var toggleLabel = new Label("batch.allowEmptyOverrides");
+            toggleLabel.AddToClassList("ndmf-tr");
+            toggleLabel.RegisterCallback<ClickEvent>(_ => toggle.value = !toggle.value);
+            row.Add(toggleLabel);
+
+            return row;
         }
 
         private string GetDefaultOutputPath()
