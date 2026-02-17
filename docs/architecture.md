@@ -66,17 +66,19 @@ Editor/
 
 ## レイヤー概要
 
-コードベースは3つのレイヤーで構成され、依存方向は一方向:
+コードベースは3つのレイヤーで構成される:
 
 ```
 UI層  →  Core層
- ↓
+ ↓         ↑ (※)
 Localization層
 ```
 
+※ `PrefabVariantGenerator`（Core）が`EditorUIUtility`（UI）の純粋ユーティリティ関数（`IsValidOutputPath`, `ResolveFileName`, `NormalizePath`）を使用している。これらはUI非依存の関数だが、コード配置上はUI層に属する。
+
 | レイヤー | 責務 |
 |---|---|
-| **Core** | 純粋なデータ処理 — スキャン、マッチング、生成。UIに依存しない。 |
+| **Core** | データ処理 — スキャン、マッチング、生成。UI非依存だが、`EditorUIUtility`のパスユーティリティに依存。 |
 | **Localization** | 翻訳の抽象化。NDMFの有無でコンパイル時に分岐。 |
 | **UI** | UIToolkitベースのエディターウィンドウ。ロジックはすべてCoreを呼び出す。 |
 
@@ -92,7 +94,7 @@ Localization層
 |---|---|
 | `MaterialSlotIdentifier` | Prefab内の特定Renderer・スロットの一意識別子。`rendererPath` + `slotIndex`で等価性を判定。`DisplayName`（UI表示用）と`GetLookupKey()`（辞書キー）を提供。 |
 | `MaterialOverride` | 1スロットに対するマテリアル差し替え命令（スロット + 差し替え先マテリアル）。 |
-| `MaterialOverrideInfo` | `MaterialOverride`にベースマテリアル情報を加えた拡張版。`RendererMatcher`が生成する。 |
+| `MaterialOverrideInfo` | `MaterialOverride`にベースマテリアル情報を加えた拡張版。`VariantAnalyzer.AnalyzeVariant()`が生成する。`RendererMatcher.MatchRenderers()`の入力としても使用される。 |
 | `ScannedMaterialSlot` | `PrefabScanner`が検出した1スロット（識別子 + 現在のマテリアル）。 |
 | `RendererMatchResult` | ソース→ターゲットのスロットマッチング結果（優先度1–4、0は手動）。 |
 | `VariantAnalysisResult` | 既存Prefab Variantの解析結果（バリアント名 + オーバーライド一覧）。 |
@@ -115,7 +117,7 @@ Localization層
 
 #### `CompareRenderers(sourceSlots, targetSlots) → List<RendererMatchResult>`
 
-Batch GeneratorとCV CreatorのImport機能の両方で使用される主要メソッド。各ソーススロットを`TryMatch()`で最適なターゲットに照合し、**マテリアルが異なるスロットのみ**を結果に含める（差分出力）。未マッチのソーススロットは`targetSlot = null`で含まれる。
+Batch GeneratorとCV CreatorのImport機能の両方で使用される主要メソッド。各ソーススロットを`TryMatch()`で最適なターゲットに照合し、**マテリアルが異なるスロットのみ**を結果に含める（差分出力）。未マッチのソーススロットは`targetSlot = null`で含まれる（ただしベースマテリアルが`null`のスロットは除外）。
 
 > `MatchRenderers()`も公開APIとして存在するが、組み込みUIからは`CompareRenderers`を使用。
 
@@ -199,6 +201,7 @@ NDMFの有無にかかわらず統一APIを提供するstaticラッパー。NDMF
 - `DefaultNamingTemplate` = `"{BaseName}_{VariantName}"`、UI記号定数（`Arrow`, `Cross`, `DropdownArrow`, `Pencil`, `Warning`等）
 - `DeduplicateVariantNames(names)` — 名前リストの重複を検出し、重複する名前すべてに`_1`, `_2`, `_3` …サフィックスを付与（一意な名前はそのまま）
 - `SetMaterialPreview(imageElement, material)` — マテリアルプレビュー画像を非同期で設定（初期遅延100ms、以降200ms間隔で最大20回リトライ）
+- 共有出力セクションヘルパー: `CreateOutputPathRow`, `CreateNamingTemplateRow` — 両ウィンドウのOutput Path・Naming Template行を共通生成。`BrowseOutputPath`, `ResolveAndValidateOutputPath`, `ConfirmSingleFileOverwrite`も出力処理で共用
 - その他: `ResolveFileName`, `NormalizePath`, `TryGetDraggedFolderPath`, `ToProjectRelativePath`, `IsValidOutputPath`, `RegisterFolderDrop`等のユーティリティ
 
 ### CreatorWindow (CV Creator)
