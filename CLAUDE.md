@@ -27,6 +27,10 @@
 - **自動テストなし** — Editor UIを通じた手動検証
 - **ログ接頭辞**: `[Color Variant Generator]`
 
+### リリースパッケージ
+
+GitHub Actionsワークフロー（`.github/workflows/release.yml`）で `vpm-packager` を使用してzip/unitypackageを生成。vpm-packagerは`.github/`と`~`末尾のみ自動除外し、`.npmignore`等は非対応のため、ワークフロー内でビルド前に開発用ファイルを削除している。開発用ファイルを追加した場合はワークフローの除外リストも更新すること。
+
 ## アーキテクチャ
 
 3層構成、依存方向は一方向:
