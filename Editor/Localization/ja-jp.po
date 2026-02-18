@@ -124,6 +124,31 @@ msgstr "すべてのマテリアルオーバーライドをクリア"
 msgid "creator.slotClear.tooltip"
 msgstr "オーバーライドをクリア"
 
+msgid "creator.materialSlots.mode.normal"
+msgstr "通常"
+
+msgid "creator.materialSlots.mode.bulk"
+msgstr "一括"
+
+#, csharp-format
+msgid "creator.materialSlots.bulkInfo"
+msgstr "マテリアルスロット（{0} materials, {1} slots）"
+
+#, csharp-format
+msgid "creator.bulk.slotsCount"
+msgstr "{0} slots"
+
+#, csharp-format
+msgid "creator.bulk.slotsOverridesCount"
+msgstr "{0} slots / {1} overrides"
+
+#, csharp-format
+msgid "creator.bulk.base"
+msgstr "（ベース: {0}）"
+
+msgid "creator.bulk.clearGroup.tooltip"
+msgstr "このグループのオーバーライドをすべてクリア"
+
 msgid "creator.clearDropdown.tooltip"
 msgstr "Prefab Revertモードを選択"
 

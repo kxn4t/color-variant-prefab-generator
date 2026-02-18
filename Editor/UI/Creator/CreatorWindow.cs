@@ -40,6 +40,14 @@ namespace Kanameliser.ColorVariantGenerator
         private Dictionary<MaterialSlotIdentifier, ObjectField> _slotObjectFields = new Dictionary<MaterialSlotIdentifier, ObjectField>();
         private bool _previewActive;
         private HashSet<MaterialSlotIdentifier> _preExistingOverrides = new HashSet<MaterialSlotIdentifier>();
+
+        // Bulk mode state
+        private bool _bulkMode;
+        private Dictionary<Material, bool> _bulkFoldoutState = new Dictionary<Material, bool>();
+        private bool _bulkNullMaterialFoldout;
+        private Dictionary<string, bool> _rendererFoldoutState = new Dictionary<string, bool>();
+        private Button _normalModeButton;
+        private Button _bulkModeButton;
         private List<GameObject> _ancestorChain = new List<GameObject>();
         private GameObject _selectedVariantParent;
         private VisualElement _parentDropdownContainer;
@@ -128,6 +136,10 @@ namespace Kanameliser.ColorVariantGenerator
                     w._parentDropdown.tooltip = Localization.S("creator.variantParent:tooltip");
                 if (w._basePrefabWarningLabel.style.display == DisplayStyle.Flex && w._currentWarningKey != null)
                     w._basePrefabWarningLabel.text = Localization.S(w._currentWarningKey);
+                if (w._normalModeButton != null)
+                    w._normalModeButton.text = Localization.S("creator.materialSlots.mode.normal");
+                if (w._bulkModeButton != null)
+                    w._bulkModeButton.text = Localization.S("creator.materialSlots.mode.bulk");
             });
         }
 

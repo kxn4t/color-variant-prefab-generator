@@ -12,17 +12,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **CV Creator: Bulk Material Replace** — "Bulk" mode toggle that groups slots by material, letting you replace all slots sharing the same material at once via drag-and-drop. Supports per-group and per-slot clear with single-step Undo
+- **Collapsible Renderer Headers** — Renderer groups in normal mode can now be collapsed and expanded to reduce clutter
+- **Alt+Click Fold All** — Alt+clicking a collapsible arrow expands or collapses all groups at once (works in both normal and bulk modes)
+
+### 追加
+
+- **CV Creator: 一括マテリアル置き換え** — マテリアルごとにスロットをグルーピングする「一括」モードを追加。同じマテリアルを使う全スロットをドラッグ＆ドロップでまとめて置き換え可能。グループ・個別のクリアにも対応し、1回のUndoで元に戻せる
+- **Rendererヘッダーの折りたたみ** — 通常モードのRendererグループを折りたたみ・展開して見た目をすっきりに
+- **Alt+クリックで全折りたたみ** — 折りたたみ矢印をAlt+クリックすると、全グループを一括展開・折りたたみ（通常モード・一括モード両対応）
+
 ## [0.1.0] - 2026-02-17
 
 Initial release.
 
 ### Added
 
-- **CV Creator** — Create color variants one at a time with real-time Scene preview and Undo/Redo support
-- **Batch Generator** — Bulk-generate Prefab Variants from existing color prefabs with automatic material difference detection
-- **Material Browser** — Grid/list view panel for browsing and drag-and-drop assigning materials
-- **Smart Renderer Matching** — 4-tier matching algorithm to map material slots between source and base prefabs
-- **Naming Template** — Customizable output file naming with `{BaseName}` and `{VariantName}` placeholders; trailing `_Base` is auto-stripped
+- **CV Creator** — Create color variants one at a time with real-time Scene preview and full Undo/Redo support
+- **Batch Generator** — Generate Prefab Variants in bulk from existing color prefabs. Material differences are detected automatically
+- **Material Browser** — Browse materials in a grid or list view, and assign them to slots via drag-and-drop
+- **Smart Renderer Matching** — Automatically maps material slots between source and base prefabs using a 4-tier matching algorithm
+- **Naming Template** — Customize output file names with `{BaseName}` and `{VariantName}` placeholders. Trailing `_Base` is auto-stripped
 - **Localization** — English and Japanese UI (Japanese requires NDMF 1.11.0+)
 
 ---
@@ -31,9 +43,9 @@ Initial release.
 
 ### 追加
 
-- **CV Creator** — リアルタイムシーンプレビューとUndo/Redo対応でカラーバリアントを1つずつ作成
-- **Batch Generator** — 既存カラーPrefabからマテリアル差分自動検出付きでPrefab Variantを一括生成
-- **マテリアルブラウザー** — マテリアルの閲覧とドラッグ&ドロップ割り当てが可能なグリッド/リスト表示パネル
-- **スマートマッチング** — ソースとベースPrefab間のマテリアルスロットを対応付ける4段階マッチングアルゴリズム
-- **命名テンプレート** — `{BaseName}`・`{VariantName}` プレースホルダーによるカスタマイズ可能な出力命名; 末尾の `_Base` は自動除去
-- **ローカライズ** — 英語・日本語UI対応（日本語はNDMF 1.11.0以上が必要）
+- **CV Creator** — リアルタイムのシーンプレビューとUndo/Redoに対応し、カラーバリアントを1つずつ作成
+- **Batch Generator** — 既存のカラーPrefabからPrefab Variantを一括生成。マテリアルの差分は自動検出
+- **マテリアルブラウザー** — グリッド・リスト表示でマテリアルを閲覧し、ドラッグ＆ドロップでスロットに割り当て
+- **スマートマッチング** — 4段階のマッチングアルゴリズムでソースとベースPrefab間のマテリアルスロットを自動対応付け
+- **命名テンプレート** — `{BaseName}`・`{VariantName}` で出力ファイル名をカスタマイズ。末尾の `_Base` は自動除去
+- **ローカライズ** — 英語・日本語UIに対応（日本語はNDMF 1.11.0以上が必要）

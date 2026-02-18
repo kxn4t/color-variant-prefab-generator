@@ -68,13 +68,40 @@
     border-radius: 3px;
 }
 
-.renderer-header {
+/* Collapsible group (shared between normal & bulk mode) */
+.collapsible-header {
     flex-direction: row;
     align-items: center;
     padding: 4px 8px;
     background-color: rgba(255, 255, 255, 0.08);
     border-bottom-width: 1px;
     border-bottom-color: rgba(0, 0, 0, 0.2);
+}
+
+.collapsible-arrow {
+    width: 16px;
+    flex-shrink: 0;
+    margin-right: 4px;
+    -unity-text-align: middle-center;
+    cursor: link;
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.collapsible-arrow--open {
+    rotate: 90deg;
+}
+
+.collapsible-arrow:hover {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.collapsible-header-content {
+    flex-direction: row;
+    align-items: center;
+    flex-grow: 1;
+    flex-shrink: 1;
+    min-width: 0;
 }
 
 .renderer-icon {
@@ -87,6 +114,114 @@
 .renderer-name {
     -unity-font-style: bold;
     flex-grow: 1;
+}
+
+/* Material slots header row (label + mode toggle) */
+.material-slots-header-row {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 5px;
+}
+
+/* Mode toggle button group — pill toggle */
+.mode-toggle-group {
+    flex-direction: row;
+    flex-shrink: 0;
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+    background-color: rgba(0, 0, 0, 0.2);
+    padding: 1px;
+}
+
+.mode-toggle-button {
+    height: 18px;
+    padding-left: 10px;
+    padding-right: 10px;
+    font-size: 11px;
+    margin: 0;
+    border-radius: 9px;
+    border-width: 0;
+    background-color: rgba(0, 0, 0, 0);
+    color: rgba(255, 255, 255, 0.45);
+    transition-property: background-color, color;
+    transition-duration: 0.15s;
+    transition-timing-function: ease-in-out;
+}
+
+.mode-toggle-button:hover {
+    background-color: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.mode-toggle-button--active {
+    background-color: rgba(100, 150, 255, 0.35);
+    color: rgba(255, 255, 255, 0.95);
+}
+
+.mode-toggle-button--active:hover {
+    background-color: rgba(100, 150, 255, 0.45);
+    color: rgba(255, 255, 255, 1.0);
+}
+
+/* Bulk mode group header */
+.bulk-group-name {
+    -unity-font-style: bold;
+    margin-right: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 130px;
+    flex-shrink: 0;
+}
+
+.bulk-group-count {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 11px;
+    margin-right: 4px;
+    flex-shrink: 0;
+}
+
+/* Override count badge (pill) */
+.bulk-override-badge {
+    background-color: rgba(100, 150, 255, 0.4);
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 10px;
+    min-width: 18px;
+    height: 16px;
+    border-radius: 8px;
+    -unity-text-align: middle-center;
+    padding-left: 4px;
+    padding-right: 4px;
+    margin-right: 4px;
+    flex-shrink: 0;
+}
+
+.bulk-header-override-field {
+}
+
+.bulk-group-no-overrides {
+    opacity: 0.5;
+}
+
+/* Bulk mode child rows */
+.bulk-child-row {
+    padding-left: 40px;
+}
+
+.bulk-child-label {
+    flex-grow: 1;
+    -unity-text-align: middle-left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.bulk-child-base-label {
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 11px;
+    margin-left: 8px;
+    margin-right: 8px;
+    flex-shrink: 0;
 }
 
 .slot-row {
@@ -119,8 +254,8 @@
 }
 
 .slot-base-name {
-    min-width: 120px;
-    max-width: 180px;
+    width: 120px;
+    flex-shrink: 0;
     -unity-text-align: middle-left;
     overflow: hidden;
     text-overflow: ellipsis;

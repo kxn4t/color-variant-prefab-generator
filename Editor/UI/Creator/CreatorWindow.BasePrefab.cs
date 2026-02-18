@@ -113,6 +113,9 @@ namespace Kanameliser.ColorVariantGenerator
             _overrides.Clear();
             _originalMaterials.Clear();
             _preExistingOverrides.Clear();
+            _bulkFoldoutState.Clear();
+            _bulkNullMaterialFoldout = false;
+            _rendererFoldoutState.Clear();
 
             _baseInstance = evt.newValue as GameObject;
             _basePrefabAsset = null;

@@ -32,24 +32,20 @@ namespace Kanameliser.ColorVariantGenerator
             return target != null ? target.GetComponent<Renderer>() : null;
         }
 
-        private void ApplyPreviewMaterial(MaterialSlotIdentifier slot, Material material)
+        /// <summary>
+        /// Core renderer material update with Undo recording.
+        /// Does NOT manage Undo group name or _previewActive — callers handle that.
+        /// </summary>
+        private void SetRendererMaterial(MaterialSlotIdentifier slot, Material material)
         {
             var renderer = FindRenderer(slot);
             if (renderer == null) return;
-
-            // Group all preview changes under a single Undo entry
-            if (!_previewActive)
-            {
-                Undo.SetCurrentGroupName("Color Variant Preview");
-                _previewActive = true;
-            }
 
             Undo.RecordObject(renderer, "Preview Material Change");
 
             var materials = renderer.sharedMaterials;
             if (slot.slotIndex >= 0 && slot.slotIndex < materials.Length)
             {
-                // Apply override or revert to original
                 if (material != null)
                 {
                     materials[slot.slotIndex] = material;
@@ -60,6 +56,18 @@ namespace Kanameliser.ColorVariantGenerator
                 }
                 renderer.sharedMaterials = materials;
             }
+        }
+
+        private void ApplyPreviewMaterial(MaterialSlotIdentifier slot, Material material)
+        {
+            // Group all preview changes under a single Undo entry
+            if (!_previewActive)
+            {
+                Undo.SetCurrentGroupName("Color Variant Preview");
+                _previewActive = true;
+            }
+
+            SetRendererMaterial(slot, material);
 
             // Force Scene view repaint
             SceneView.RepaintAll();

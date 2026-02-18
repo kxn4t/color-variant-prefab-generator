@@ -223,6 +223,10 @@ NDMFの有無にかかわらず統一APIを提供するstaticラッパー。NDMF
 | `_ancestorChain` | ベースPrefabの祖先チェーン（ルートから順、Variant Parent選択用） |
 | `_selectedVariantParent` | 生成時に使用する親Prefab（ドロップダウンで選択） |
 | `_previewActive` | Sceneプレビューが有効か |
+| `_bulkMode` | 一括モードが有効か（ウィンドウを閉じるとリセット） |
+| `_bulkFoldoutState` | 一括モードのマテリアルごとの折りたたみ状態（`Dictionary<Material, bool>`） |
+| `_bulkNullMaterialFoldout` | `(None)`マテリアルグループの折りたたみ状態（nullキー分離） |
+| `_rendererFoldoutState` | 通常モードのRendererごとの折りたたみ状態（`Dictionary<string, bool>`） |
 
 #### ファイルごとの責務
 
@@ -230,8 +234,8 @@ NDMFの有無にかかわらず統一APIを提供するstaticラッパー。NDMF
 |---|---|
 | `CreatorWindow.cs` | ウィンドウライフサイクル、`CreateGUI()`、Undo/Redoハンドリング |
 | `CreatorWindow.BasePrefab.cs` | Base Prefab ObjectField、Import from Prefabセクション、祖先チェーン構築 |
-| `CreatorWindow.MaterialSlots.cs` | スロット一覧UI、D&Dハンドリング、オーバーライド変更イベント |
-| `CreatorWindow.Preview.cs` | `ApplyPreviewMaterial()`、`ResetPreview()`、Revertモード |
+| `CreatorWindow.MaterialSlots.cs` | スロット一覧UI（通常モード・一括モード）、共通折りたたみヘルパー`CreateCollapsibleGroup()`（Alt+クリックで全グループ一括展開/折りたたみ対応）、実効マテリアルによるグルーピング`GroupByEffectiveMaterial()`、一括D&D`ApplyBulkOverride()`、一括クリア`ClearBulkOverride()`、モード切替`SetBulkMode()` |
+| `CreatorWindow.Preview.cs` | `SetRendererMaterial()`（Undoグループ非管理のコアレンダラー更新）、`ApplyPreviewMaterial()`（プレビュー用ラッパー）、`ResetPreview()`、Revertモード |
 | `CreatorWindow.Output.cs` | 出力設定、Variant Parent選択ドロップダウン、バリデーション、Generateボタン、次アクションダイアログ |
 
 ### BatchGeneratorWindow (Batch Generator)
