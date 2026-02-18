@@ -124,6 +124,31 @@ msgstr "Clear all material overrides"
 msgid "creator.slotClear.tooltip"
 msgstr "Clear override"
 
+msgid "creator.materialSlots.mode.normal"
+msgstr "Normal"
+
+msgid "creator.materialSlots.mode.bulk"
+msgstr "Bulk"
+
+#, csharp-format
+msgid "creator.materialSlots.bulkInfo"
+msgstr "Material Slots ({0} materials, {1} slots)"
+
+#, csharp-format
+msgid "creator.bulk.slotsCount"
+msgstr "{0} slots"
+
+#, csharp-format
+msgid "creator.bulk.slotsOverridesCount"
+msgstr "{0} slots / {1} overrides"
+
+#, csharp-format
+msgid "creator.bulk.base"
+msgstr "(base: {0})"
+
+msgid "creator.bulk.clearGroup.tooltip"
+msgstr "Clear all overrides in this group"
+
 msgid "creator.clearDropdown.tooltip"
 msgstr "Select Prefab revert mode"
 

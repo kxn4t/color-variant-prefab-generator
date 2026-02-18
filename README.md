@@ -12,7 +12,7 @@ This tool solves these problems by automatically generating **Prefab Variants** 
 
 ## Features
 
-- **CV Creator** — Create color variants one at a time while viewing a scene preview
+- **CV Creator** — Create color variants one at a time while viewing a scene preview; bulk-replace materials across all slots sharing the same material
 - **Batch Generator** — Bulk-deploy existing color variants to a different base Prefab
 - **Material Browser** — Browse materials in a folder with thumbnails; assign via drag-and-drop
 - **Real-time Preview** — Material changes are instantly reflected in the Scene view (with Undo/Redo support)
@@ -67,7 +67,7 @@ It is also convenient for the task of assigning materials to models.
 1. Place the base Prefab in the Scene Hierarchy
 2. Open **Tools > Color Variant Prefab Generator > Creator**
 3. Drag the Hierarchy instance into the **Base Prefab** field
-4. The left panel lists material slots for each Renderer
+4. The left panel lists material slots for each Renderer — switch to **Bulk** mode via the toggle to group by material and replace across all matching slots at once
 5. Set a **Material Folder** in the right panel to browse materials
 6. Swap materials via drag-and-drop or the picker — changes are instantly reflected in the Scene view
 7. Enter a **Variant Name** (e.g., "Black"), set the output path, and click **Generate Prefab Variant**
