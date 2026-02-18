@@ -27,6 +27,8 @@ namespace Kanameliser.ColorVariantGenerator
         private float _thumbnailSize = DefaultThumbnailSize;
         private bool _dragInitiated;
         private Button _refreshButton;
+        private IVisualElementScheduledItem _highlightSchedule;
+        private VisualElement _highlightedItem;
 
         private bool IsListMode => _thumbnailSize < ListModeThreshold;
 
@@ -349,15 +351,24 @@ namespace Kanameliser.ColorVariantGenerator
 
             if (target == null) return;
 
+            // Clear previous highlight immediately
+            if (_highlightedItem != null)
+            {
+                _highlightedItem.RemoveFromClassList("browser-item-highlight");
+                _highlightSchedule?.Pause();
+            }
+
             // Scroll into view
             _materialListScroll.ScrollTo(target);
 
             // Add highlight class and remove after a delay
+            _highlightedItem = target;
             target.AddToClassList("browser-item-highlight");
-            target.schedule.Execute(() =>
+            _highlightSchedule = target.schedule.Execute(() =>
             {
                 target.RemoveFromClassList("browser-item-highlight");
-            }).StartingIn(2000);
+                _highlightedItem = null;
+            }).StartingIn(5000);
         }
 
         private void OnRefreshButtonClicked()

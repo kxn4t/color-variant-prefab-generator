@@ -18,11 +18,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Collapsible Renderer Headers** — Renderer groups in normal mode can now be collapsed and expanded to reduce clutter
 - **Alt+Click Fold All** — Alt+clicking a collapsible arrow expands or collapses all groups at once (works in both normal and bulk modes)
 
+### Changed
+
+- **CV Creator: Improved Material Highlight** — Increased material highlight duration from 2 seconds to 5 seconds. Clicking a slot row now also highlights the row itself with a blue left border, making it easy to see which slot you selected. Consecutive clicks properly clear the previous highlight before showing the new one
+
 ### 追加
 
 - **CV Creator: 一括マテリアル置き換え** — マテリアルごとにスロットをグルーピングする「一括」モードを追加。同じマテリアルを使う全スロットをドラッグ＆ドロップでまとめて置き換え可能。グループ・個別のクリアにも対応し、1回のUndoで元に戻せる
 - **Rendererヘッダーの折りたたみ** — 通常モードのRendererグループを折りたたみ・展開して見た目をすっきりに
 - **Alt+クリックで全折りたたみ** — 折りたたみ矢印をAlt+クリックすると、全グループを一括展開・折りたたみ（通常モード・一括モード両対応）
+
+### 変更
+
+- **CV Creator: マテリアルハイライトの改善** — マテリアルのハイライト表示時間を2秒から5秒に延長。スロット行をクリックした際にその行自体も青い左ボーダーでハイライト表示されるようになり、どのスロットを選択したか一目でわかるように。連続クリック時は前のハイライトが即座にクリアされる
 
 ## [0.1.0] - 2026-02-17
 

@@ -237,6 +237,16 @@
     background-color: rgba(255, 255, 255, 0.03);
 }
 
+/* Slot row highlight (temporary flash when clicking a row to locate material) */
+.slot-row-highlight {
+    background-color: rgba(100, 150, 255, 0.2);
+    border-left-width: 3px;
+    border-left-color: rgba(100, 150, 255, 0.8);
+    transition-property: background-color, border-left-color;
+    transition-duration: 0.6s;
+    transition-timing-function: ease-out;
+}
+
 .slot-index {
     width: 30px;
     color: rgba(255, 255, 255, 0.5);
