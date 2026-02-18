@@ -266,6 +266,7 @@ namespace Kanameliser.ColorVariantGenerator
                 {
                     Selection.activeObject = overrideMat;
                     _materialBrowser?.HighlightMaterial(overrideMat);
+                    HighlightSlotRow(row);
                     evt.StopPropagation();
                 }
             });
@@ -277,12 +278,37 @@ namespace Kanameliser.ColorVariantGenerator
                 {
                     Selection.activeObject = capturedSlot.baseMaterial;
                     _materialBrowser?.HighlightMaterial(capturedSlot.baseMaterial);
+                    HighlightSlotRow(row);
                 }
             });
 
             RegisterSlotDragAndDrop(row, overrideField);
 
             return row;
+        }
+
+        private IVisualElementScheduledItem _slotHighlightSchedule;
+        private VisualElement _highlightedSlotRow;
+
+        /// <summary>
+        /// Temporarily highlights a slot row so the user can see which row was clicked.
+        /// </summary>
+        private void HighlightSlotRow(VisualElement row)
+        {
+            // Clear previous highlight immediately
+            if (_highlightedSlotRow != null)
+            {
+                _highlightedSlotRow.RemoveFromClassList("slot-row-highlight");
+                _slotHighlightSchedule?.Pause();
+            }
+
+            _highlightedSlotRow = row;
+            row.AddToClassList("slot-row-highlight");
+            _slotHighlightSchedule = row.schedule.Execute(() =>
+            {
+                row.RemoveFromClassList("slot-row-highlight");
+                _highlightedSlotRow = null;
+            }).StartingIn(5000);
         }
 
         private void OnMaterialOverrideChanged(MaterialSlotIdentifier slot, Material material, VisualElement row)
@@ -448,14 +474,14 @@ namespace Kanameliser.ColorVariantGenerator
 
             // Click thumbnail/name to select material in Inspector + highlight in browser
             var capturedMaterial = effectiveMaterial;
-            RegisterMaterialClickHandler(thumbnail, capturedMaterial);
-            RegisterMaterialClickHandler(nameLabel, capturedMaterial);
+            RegisterMaterialClickHandler(thumbnail, capturedMaterial, headerContent);
+            RegisterMaterialClickHandler(nameLabel, capturedMaterial, headerContent);
 
             // Header D&D for bulk assignment
             RegisterBulkHeaderDragAndDrop(headerContent, capturedSlots);
         }
 
-        private void RegisterMaterialClickHandler(VisualElement element, Material material)
+        private void RegisterMaterialClickHandler(VisualElement element, Material material, VisualElement highlightRow = null)
         {
             element.RegisterCallback<MouseDownEvent>(evt =>
             {
@@ -463,6 +489,8 @@ namespace Kanameliser.ColorVariantGenerator
                 {
                     Selection.activeObject = material;
                     _materialBrowser?.HighlightMaterial(material);
+                    if (highlightRow != null)
+                        HighlightSlotRow(highlightRow);
                     evt.StopPropagation();
                 }
             });

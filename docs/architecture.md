@@ -272,7 +272,7 @@ NDMFの有無にかかわらず統一APIを提供するstaticラッパー。NDMF
 - `SetRootFolder(path)` — ルートフォルダーを設定し、マテリアル一覧を更新
 - `RefreshMaterialList()` — スキャン、サブフォルダーごとにグループ化、アイテムを描画
 - `CollectMaterialsBySubfolder(rootFolder)` — `AssetDatabase.FindAssets("t:Material")`でマテリアルを検索し、サブフォルダーパスをキーとした辞書に分類
-- `HighlightMaterial(material)` — 指定マテリアルまでスクロールし、約2秒間ハイライト
+- `HighlightMaterial(material)` — 指定マテリアルまでスクロールし、5秒間ハイライト。連続クリック時は前のハイライトを即座にクリアする
 - `RegisterMaterialInteraction(item, material)` — クリック（Inspector選択）とドラッグ（D&D開始）のインタラクションを設定
 
 **表示モード**（スライダー0–96で制御）:
