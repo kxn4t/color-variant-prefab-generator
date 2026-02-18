@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-02-19
+
 ### Added
 
 - **CV Creator: Bulk Material Replace** — "Bulk" mode toggle that groups slots by material, letting you replace all slots sharing the same material at once via drag-and-drop. Supports per-group and per-slot clear with single-step Undo

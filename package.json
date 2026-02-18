@@ -1,6 +1,6 @@
 {
   "name": "net.kanameliser.color-variant-generator",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "displayName": "Color Variant Prefab Generator",
   "description": "Generate color variation Prefab Variants for VRChat outfits by batch material swapping",
   "unity": "2022.3",
