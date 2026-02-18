@@ -578,8 +578,17 @@ namespace Kanameliser.ColorVariantGenerator
 
             foreach (var slot in slots)
             {
-                _overrides[slot.identifier] = material;
-                SetRendererMaterial(slot.identifier, material);
+                if (slot.baseMaterial == material)
+                {
+                    // Matches base — remove override instead of writing a no-op
+                    _overrides.Remove(slot.identifier);
+                    SetRendererMaterial(slot.identifier, null);
+                }
+                else
+                {
+                    _overrides[slot.identifier] = material;
+                    SetRendererMaterial(slot.identifier, material);
+                }
             }
 
             SceneView.RepaintAll();
