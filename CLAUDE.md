@@ -57,9 +57,9 @@ Localization層 (Localization.cs — #if CVG_HAS_NDMF で条件分岐)
 
 両ウィンドウとも**partial class**でUIセクションごとに分割:
 
-- **CreatorWindow** — 5ファイル: メインライフサイクル、BasePrefab、MaterialSlots、Preview、Output
-- **BatchGeneratorWindow** — 4ファイル: メインライフサイクル、VariantList、Matching、Output
-- **MaterialBrowserPanel** — グリッド/リスト切替のマテリアルブラウザー（非同期サムネイル読み込み）
+- **CreatorWindow** (`Creator/`) — 5ファイル: メインライフサイクル、BasePrefab、MaterialSlots、Preview、Output
+- **BatchGeneratorWindow** (`BatchGenerator/`) — 4ファイル: メインライフサイクル、VariantList、Matching、Output
+- **MaterialBrowserPanel** (`Creator/`) — グリッド/リスト切替のマテリアルブラウザー（非同期サムネイル読み込み）
 - **EditorUIUtility** — 共有定数・ユーティリティ（命名テンプレート、重複名解決、パスユーティリティ等）
 
 ### Localization層 (`Editor/Localization/`)
@@ -88,5 +88,6 @@ Localization層 (Localization.cs — #if CVG_HAS_NDMF で条件分岐)
 
 ## 主要ドキュメント
 
+- `package.json` — VPMパッケージマニフェスト（バージョン・依存関係管理）
 - [docs/architecture.md](docs/architecture.md) — コードアーキテクチャ詳細
 - [docs/specification.md](docs/specification.md) — プロダクトレベルの機能仕様・UIワークフロー
