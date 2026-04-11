@@ -52,13 +52,7 @@ namespace Kanameliser.ColorVariantGenerator
             // Use GetObjectOverrides to detect only actual overrides visible in the Inspector.
             // GetPropertyModifications returns internal/default values that are not real overrides.
             var objectOverrides = PrefabUtility.GetObjectOverrides(hierarchyInstance, true);
-
-            // Build a set of added object instance IDs for filtering
-            var addedInstanceIds = new HashSet<int>();
-            foreach (var added in addedObjects)
-            {
-                CollectInstanceIds(added.instanceGameObject.transform, addedInstanceIds);
-            }
+            var addedInstanceIds = BuildAddedInstanceIds(addedObjects);
 
             foreach (var objectOverride in objectOverrides)
             {
@@ -66,14 +60,12 @@ namespace Kanameliser.ColorVariantGenerator
                 if (target == null) continue;
 
                 // Skip overrides on added GameObjects (those are always included wholesale)
-                var targetGO = GetGameObject(target);
-                if (targetGO != null && addedInstanceIds.Contains(targetGO.GetInstanceID()))
+                if (IsAddedObject(target, addedInstanceIds))
                     continue;
 
                 // Detect renames (GameObject override with m_Name changed)
                 if (target is GameObject go)
                 {
-                    // Check if the name actually differs from the asset counterpart
                     var assetObject = objectOverride.GetAssetObject() as GameObject;
                     if (assetObject != null && go.name != assetObject.name)
                     {
@@ -81,7 +73,6 @@ namespace Kanameliser.ColorVariantGenerator
                         if (!summary.renamedGameObjects.Contains(objectPath))
                             summary.renamedGameObjects.Add(objectPath);
                     }
-                    continue;
                 }
 
                 // Transform and component overrides on existing objects are not tracked here.
@@ -108,13 +99,8 @@ namespace Kanameliser.ColorVariantGenerator
             var allModifications = PrefabUtility.GetPropertyModifications(hierarchyInstance);
             if (allModifications == null) return Array.Empty<PropertyModification>();
 
-            // Build set of instance IDs for added GameObjects
             var addedObjects = PrefabUtility.GetAddedGameObjects(hierarchyInstance);
-            var addedInstanceIds = new HashSet<int>();
-            foreach (var added in addedObjects)
-            {
-                CollectInstanceIds(added.instanceGameObject.transform, addedInstanceIds);
-            }
+            var addedInstanceIds = BuildAddedInstanceIds(addedObjects);
 
             // Build set of instance IDs for objects that have actual overrides (visible in Inspector)
             var objectOverrides = PrefabUtility.GetObjectOverrides(hierarchyInstance, true);
@@ -131,57 +117,54 @@ namespace Kanameliser.ColorVariantGenerator
             {
                 if (mod.target == null) continue;
 
-                // Always exclude material modifications (handled by material override system)
-                if (mod.propertyPath.StartsWith("m_Materials"))
-                    continue;
-
-                // Check if this modification belongs to an added GameObject
-                var targetGO = GetGameObject(mod.target);
-                if (targetGO != null && addedInstanceIds.Contains(targetGO.GetInstanceID()))
-                {
-                    // Added GameObjects: always include all modifications
+                if (ShouldIncludeModification(mod, hierarchyInstance, addedInstanceIds, overriddenInstanceIds, options))
                     filtered.Add(mod);
-                    continue;
-                }
-
-                // Only include modifications on objects that have actual overrides
-                if (!overriddenInstanceIds.Contains(mod.target.GetInstanceID()))
-                    continue;
-
-                // Existing object modifications: apply filtering
-
-                // Always include: name changes (structural rename)
-                if (mod.target is GameObject && mod.propertyPath == "m_Name")
-                {
-                    filtered.Add(mod);
-                    continue;
-                }
-
-                // Always include: active state changes (structural enable/disable)
-                if (mod.target is GameObject && mod.propertyPath == "m_IsActive")
-                {
-                    filtered.Add(mod);
-                    continue;
-                }
-
-                // Skip root Transform — placing a prefab in the scene always creates
-                // position/rotation overrides on the root, which are not meaningful.
-                if (mod.target is Transform t && t == hierarchyInstance.transform)
-                    continue;
-
-                // Conditionally include: Transform and component property changes
-                if (mod.target is Transform || mod.target is Component)
-                {
-                    if (options.includePropertyChanges)
-                        filtered.Add(mod);
-                    continue;
-                }
-
-                // Include anything else that doesn't fall into the above categories
-                filtered.Add(mod);
             }
 
             return filtered.ToArray();
+        }
+
+        /// <summary>
+        /// Determines whether a single PropertyModification should be included in the filtered output.
+        /// </summary>
+        private static bool ShouldIncludeModification(
+            PropertyModification mod,
+            GameObject hierarchyInstance,
+            HashSet<int> addedInstanceIds,
+            HashSet<int> overriddenInstanceIds,
+            StandardModeOptions options)
+        {
+            // Always exclude material modifications (handled by material override system)
+            if (mod.propertyPath.StartsWith("m_Materials"))
+                return false;
+
+            // Added GameObjects: always include all modifications
+            if (IsAddedObject(mod.target, addedInstanceIds))
+                return true;
+
+            // Only include modifications on objects that have actual overrides
+            if (!overriddenInstanceIds.Contains(mod.target.GetInstanceID()))
+                return false;
+
+            // Always include: name changes (structural rename)
+            if (mod.target is GameObject && mod.propertyPath == "m_Name")
+                return true;
+
+            // Always include: active state changes (structural enable/disable)
+            if (mod.target is GameObject && mod.propertyPath == "m_IsActive")
+                return true;
+
+            // Skip root Transform — placing a prefab in the scene always creates
+            // position/rotation overrides on the root, which are not meaningful.
+            if (mod.target is Transform t && t == hierarchyInstance.transform)
+                return false;
+
+            // Conditionally include: Transform and component property changes
+            if (mod.target is Transform || mod.target is Component)
+                return options.includePropertyChanges;
+
+            // Include anything else that doesn't fall into the above categories
+            return true;
         }
 
         /// <summary>
@@ -525,6 +508,35 @@ namespace Kanameliser.ColorVariantGenerator
             return string.Join("/", parts);
         }
 
+        /// <summary>
+        /// Builds a set of instance IDs covering all GameObjects and Components
+        /// under each added root. Used to identify whether a given object belongs
+        /// to an added subtree.
+        /// </summary>
+        private static HashSet<int> BuildAddedInstanceIds(List<AddedGameObject> addedObjects)
+        {
+            var ids = new HashSet<int>();
+            foreach (var added in addedObjects)
+                CollectInstanceIds(added.instanceGameObject.transform, ids);
+            return ids;
+        }
+
+        /// <summary>
+        /// Returns true if the given object belongs to an added GameObject subtree.
+        /// </summary>
+        private static bool IsAddedObject(Object obj, HashSet<int> addedInstanceIds)
+        {
+            var go = obj is GameObject g ? g : (obj is Component c ? c.gameObject : null);
+            return go != null && addedInstanceIds.Contains(go.GetInstanceID());
+        }
+
+        private static GameObject GetGameObject(Object obj)
+        {
+            if (obj is GameObject go) return go;
+            if (obj is Component comp) return comp.gameObject;
+            return null;
+        }
+
         private static void CollectInstanceIds(Transform root, HashSet<int> ids)
         {
             ids.Add(root.gameObject.GetInstanceID());
@@ -536,13 +548,6 @@ namespace Kanameliser.ColorVariantGenerator
             {
                 CollectInstanceIds(root.GetChild(i), ids);
             }
-        }
-
-        private static GameObject GetGameObject(Object obj)
-        {
-            if (obj is GameObject go) return go;
-            if (obj is Component comp) return comp.gameObject;
-            return null;
         }
     }
 }
