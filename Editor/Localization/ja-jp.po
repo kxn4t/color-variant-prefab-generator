@@ -208,6 +208,26 @@ msgstr "オーバーライドを保持"
 msgid "creator.error.generateFailed"
 msgstr "Prefab Variantの生成に失敗しました:\n{0}"
 
+# ── Creator: Standard/Strictモード ──
+
+msgid "creator.menu.modeStrict"
+msgstr "Strictモード（マテリアルのみ）"
+
+msgid "creator.strictIndicator"
+msgstr "Strictモード"
+
+msgid "creator.strictIndicator:tooltip"
+msgstr "マテリアルオーバーライドのみが保存されます。Hierarchyインスタンス上の構造変更は無視されます。オプションメニューから変更できます。"
+
+msgid "creator.standard.includePropertyChanges"
+msgstr "Transform/コンポーネントの変更を含める"
+
+msgid "creator.standard.includePropertyChanges:tooltip"
+msgstr "生成されるVariantに既存オブジェクトのTransformおよびコンポーネントプロパティ変更を含めます（マテリアル変更は常に適用されます）"
+
+msgid "creator.warning.noChanges"
+msgstr "構造変更もマテリアルオーバーライドもありません。生成されるVariantはベースPrefabと同一になります。続行しますか？"
+
 # ── マテリアルブラウザー ──
 
 msgid "browser.title"

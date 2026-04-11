@@ -63,6 +63,9 @@ namespace Kanameliser.ColorVariantGenerator
             section.Add(EditorUIUtility.CreateNamingTemplateRow(
                 out _namingTemplateField, UpdateOutputPreview));
 
+            // Standard mode options (include Transform / component changes)
+            CreateStandardModeOptions(section);
+
             // Preview
             _outputPreviewLabel = new Label();
             _outputPreviewLabel.AddToClassList("output-preview-label");
@@ -274,11 +277,26 @@ namespace Kanameliser.ColorVariantGenerator
 
         /// <summary>
         /// Shows a confirmation dialog when no overrides are set.
+        /// In Standard mode, also considers structural changes.
         /// Returns true to proceed, false to cancel.
         /// </summary>
-        private static bool ConfirmEmptyOverrides(List<MaterialOverride> overridesList)
+        private bool ConfirmEmptyOverrides(List<MaterialOverride> overridesList)
         {
             if (overridesList.Count > 0) return true;
+
+            // In Standard mode, structural changes alone are a valid reason to generate
+            if (_creatorMode == CreatorMode.Standard && _structuralSummary != null && _structuralSummary.HasStructuralChanges)
+                return true;
+
+            // In Standard mode with no changes at all, show a different warning
+            if (_creatorMode == CreatorMode.Standard)
+            {
+                return EditorUtility.DisplayDialog(
+                    Localization.S("common.warning"),
+                    Localization.S("creator.warning.noChanges"),
+                    Localization.S("creator.generateAnyway"),
+                    Localization.S("common.cancel"));
+            }
 
             return EditorUtility.DisplayDialog(
                 Localization.S("common.warning"),
@@ -289,8 +307,27 @@ namespace Kanameliser.ColorVariantGenerator
 
         private void ExecuteGeneration(GameObject parentPrefab, List<MaterialOverride> overridesList, string variantName, string outputPath, string namingTemplate)
         {
-            var result = PrefabVariantGenerator.GenerateVariant(
-                parentPrefab, overridesList, variantName, outputPath, namingTemplate);
+            GenerationResult result;
+
+            if (_creatorMode == CreatorMode.Standard)
+            {
+                var request = new StandardGenerationRequest
+                {
+                    basePrefabAsset = parentPrefab,
+                    hierarchyInstance = _baseInstance,
+                    materialOverrides = overridesList,
+                    options = _standardModeOptions,
+                    variantName = variantName,
+                    outputPath = outputPath,
+                    namingTemplate = namingTemplate
+                };
+                result = PrefabVariantGenerator.GenerateStandardVariant(request);
+            }
+            else
+            {
+                result = PrefabVariantGenerator.GenerateVariant(
+                    parentPrefab, overridesList, variantName, outputPath, namingTemplate);
+            }
 
             if (result.success)
             {

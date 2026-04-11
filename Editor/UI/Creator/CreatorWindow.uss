@@ -624,6 +624,55 @@
     transition-timing-function: ease-out;
 }
 
+/* Section label row (label + optional badge) */
+.section-label-row {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.section-label-row > .section-label {
+    margin-bottom: 0;
+    flex-grow: 1;
+}
+
+/* Standard mode: Strict indicator badge */
+.strict-indicator {
+    padding: 2px 6px;
+    color: #e5c463;
+    background-color: rgba(229, 196, 99, 0.15);
+    border-radius: 3px;
+    border-width: 1px;
+    border-color: rgba(229, 196, 99, 0.3);
+    font-size: 10px;
+    -unity-font-style: bold;
+    flex-shrink: 0;
+}
+
+/* Added object section header */
+.added-object-header {
+    padding: 4px 8px;
+    margin-top: 6px;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 11px;
+    -unity-font-style: bold;
+    background-color: rgba(100, 200, 100, 0.1);
+    border-top-width: 1px;
+    border-top-color: rgba(100, 200, 100, 0.3);
+}
+
+/* Standard mode: option toggles (in Output section) */
+.standard-options-container {
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top-width: 1px;
+    border-top-color: rgba(0, 0, 0, 0.2);
+}
+
+.standard-option-toggle {
+    margin-bottom: 2px;
+}
+
 /* Info / help box */
 .info-box {
     padding: 8px;

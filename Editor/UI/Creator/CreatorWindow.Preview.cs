@@ -156,9 +156,47 @@ namespace Kanameliser.ColorVariantGenerator
         private void OnClearOverrides()
         {
             ResetPreview();
+
+            // Restore pre-existing overrides to the Prefab's original materials.
+            // ResetPreview only runs when _previewActive is true, but pre-existing
+            // overrides are loaded at scan time without activating preview mode.
+            if (!_previewActive)
+            {
+                RestoreOriginalMaterials();
+            }
+
             _overrides.Clear();
             _variantNameField.value = "";
             RefreshAllUI();
+        }
+
+        /// <summary>
+        /// Restores all renderer materials to <see cref="_originalMaterials"/> snapshot values.
+        /// Unlike <see cref="ResetPreview"/>, this runs unconditionally regardless of preview state.
+        /// </summary>
+        private void RestoreOriginalMaterials()
+        {
+            if (_baseInstance == null) return;
+
+            foreach (var kvp in _originalMaterials)
+            {
+                var slot = kvp.Key;
+                var originalMaterial = kvp.Value;
+
+                var renderer = FindRenderer(slot);
+                if (renderer == null) continue;
+
+                var materials = renderer.sharedMaterials;
+                if (slot.slotIndex >= 0 && slot.slotIndex < materials.Length
+                    && materials[slot.slotIndex] != originalMaterial)
+                {
+                    Undo.RecordObject(renderer, "Clear Material Override");
+                    materials[slot.slotIndex] = originalMaterial;
+                    renderer.sharedMaterials = materials;
+                }
+            }
+
+            SceneView.RepaintAll();
         }
     }
 }

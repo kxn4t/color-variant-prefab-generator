@@ -40,6 +40,7 @@ namespace Kanameliser.ColorVariantGenerator
         private Dictionary<MaterialSlotIdentifier, ObjectField> _slotObjectFields = new Dictionary<MaterialSlotIdentifier, ObjectField>();
         private bool _previewActive;
         private HashSet<MaterialSlotIdentifier> _preExistingOverrides = new HashSet<MaterialSlotIdentifier>();
+        private HashSet<string> _lastSlotKeys = new HashSet<string>();
 
         // Bulk mode state
         private bool _bulkMode;
@@ -100,6 +101,7 @@ namespace Kanameliser.ColorVariantGenerator
             langSwitcher.AddToClassList("language-switcher");
             leftPane.Add(langSwitcher);
 
+            RestoreCreatorMode();
             CreateBasePrefabSection(leftPane);
             CreateMaterialSlotsSection(leftPane);
             CreateOutputSection(leftPane);
@@ -140,27 +142,53 @@ namespace Kanameliser.ColorVariantGenerator
                     w._normalModeButton.text = Localization.S("creator.materialSlots.mode.normal");
                 if (w._bulkModeButton != null)
                     w._bulkModeButton.text = Localization.S("creator.materialSlots.mode.bulk");
+                if (w._strictIndicatorLabel != null)
+                {
+                    w._strictIndicatorLabel.text = Localization.S("creator.strictIndicator");
+                    w._strictIndicatorLabel.tooltip = Localization.S("creator.strictIndicator:tooltip");
+                }
+                if (w._includePropertyChangesToggle != null)
+                {
+                    w._includePropertyChangesToggle.label = Localization.S("creator.standard.includePropertyChanges");
+                    w._includePropertyChangesToggle.tooltip = Localization.S("creator.standard.includePropertyChanges:tooltip");
+                }
             });
         }
 
         private void OnEnable()
         {
             Undo.undoRedoPerformed += OnUndoRedoPerformed;
+            EditorApplication.hierarchyChanged += OnHierarchyChanged;
         }
 
         private void OnDisable()
         {
             Undo.undoRedoPerformed -= OnUndoRedoPerformed;
+            EditorApplication.hierarchyChanged -= OnHierarchyChanged;
         }
 
 
         private void OnUndoRedoPerformed()
         {
-            if (_baseInstance == null || _scannedSlots.Count == 0) return;
+            SyncOverridesFromRenderers();
+            RefreshAllUI();
+        }
 
-            // Undo/redo may have changed renderer materials directly, so rebuild
-            // _overrides by comparing current renderer state against the original snapshot
-            _overrides.Clear();
+        /// <summary>
+        /// Rebuilds <see cref="_overrides"/> by comparing the current renderer materials
+        /// against the <see cref="_originalMaterials"/> snapshot. Picks up any material
+        /// change made outside this tool (Scene view drag-drop, Inspector edits, Undo/Redo).
+        /// </summary>
+        /// <returns>true if the override set actually changed.</returns>
+        private bool SyncOverridesFromRenderers()
+        {
+            if (_baseInstance == null || _scannedSlots.Count == 0) return false;
+
+            bool changed = false;
+            int previousCount = _overrides.Count;
+
+            // Build new override set and compare against existing
+            var newOverrides = new Dictionary<MaterialSlotIdentifier, Material>();
             foreach (var slot in _scannedSlots)
             {
                 var renderer = FindRenderer(slot.identifier);
@@ -172,11 +200,24 @@ namespace Kanameliser.ColorVariantGenerator
                 var currentMat = materials[slot.identifier.slotIndex];
                 if (_originalMaterials.TryGetValue(slot.identifier, out var originalMat) && currentMat != originalMat)
                 {
-                    _overrides[slot.identifier] = currentMat;
+                    newOverrides[slot.identifier] = currentMat;
+
+                    // Detect if this is a new or changed override
+                    if (!changed)
+                    {
+                        if (!_overrides.TryGetValue(slot.identifier, out var prev) || prev != currentMat)
+                            changed = true;
+                    }
                 }
             }
 
-            RefreshAllUI();
+            if (!changed && newOverrides.Count != previousCount)
+                changed = true;
+
+            if (changed)
+                _overrides = newOverrides;
+
+            return changed;
         }
 
         private void RefreshAllUI()
@@ -186,9 +227,33 @@ namespace Kanameliser.ColorVariantGenerator
             UpdateGenerateButtonState();
         }
 
+        private void OnHierarchyChanged()
+        {
+            if (_baseInstance != null && _basePrefabAsset != null)
+            {
+                if (HasSlotSetChanged())
+                {
+                    // Structural change: renderers added/removed — full rescan needed
+                    RescanMaterialSlots();
+                    RefreshAllUI();
+                }
+                else if (SyncOverridesFromRenderers())
+                {
+                    // Material-only change detected — refresh UI
+                    RefreshAllUI();
+                }
+            }
+            RefreshStructuralChanges();
+        }
+
         private void OnBrowserRefreshRequested()
         {
-            RefreshMaterialSlotsUI();
+            if (_baseInstance != null && _basePrefabAsset != null)
+            {
+                RescanMaterialSlots();
+            }
+            RefreshStructuralChanges();
+            RefreshAllUI();
         }
 
         private void UpdateImportSectionState()

@@ -121,4 +121,60 @@ namespace Kanameliser.ColorVariantGenerator
         public MaterialSlotIdentifier identifier;
         public Material baseMaterial;
     }
+
+    /// <summary>
+    /// Creator window generation mode.
+    /// </summary>
+    internal enum CreatorMode
+    {
+        /// <summary>Preserves structural changes (added/removed/renamed GameObjects) alongside material overrides.</summary>
+        Standard = 0,
+
+        /// <summary>Material-only overrides (current behavior). Ignores all structural changes on the hierarchy instance.</summary>
+        Strict = 1
+    }
+
+    /// <summary>
+    /// Options controlling which existing-object property changes to include in Standard mode generation.
+    /// Only applies to objects that already exist in the base Prefab — added GameObjects always include all changes.
+    /// </summary>
+    internal class StandardModeOptions
+    {
+        /// <summary>Whether to include Transform and component property modifications on existing objects.</summary>
+        public bool includePropertyChanges;
+    }
+
+    /// <summary>
+    /// Request data for Standard mode Prefab Variant generation.
+    /// </summary>
+    internal class StandardGenerationRequest
+    {
+        public GameObject basePrefabAsset;
+        public GameObject hierarchyInstance;
+        public List<MaterialOverride> materialOverrides;
+        public StandardModeOptions options;
+        public string variantName;
+        public string outputPath;
+        public string namingTemplate;
+    }
+
+    /// <summary>
+    /// Summary of structural changes detected on a hierarchy instance relative to its base Prefab.
+    /// Used for UI display in Standard mode.
+    /// </summary>
+    internal class StructuralChangeSummary
+    {
+        /// <summary>Paths of GameObjects added to the instance (not present in base Prefab).</summary>
+        public List<string> addedGameObjects = new List<string>();
+
+        /// <summary>Paths of GameObjects removed from the instance (present in base but deleted/deactivated).</summary>
+        public List<string> removedGameObjects = new List<string>();
+
+        /// <summary>Paths of GameObjects whose names were changed.</summary>
+        public List<string> renamedGameObjects = new List<string>();
+
+        /// <summary>Whether any structural changes (added, removed, or renamed GameObjects) exist.</summary>
+        public bool HasStructuralChanges =>
+            addedGameObjects.Count > 0 || removedGameObjects.Count > 0 || renamedGameObjects.Count > 0;
+    }
 }
