@@ -419,7 +419,7 @@ namespace Kanameliser.ColorVariantGenerator
                 }
             });
 
-            RegisterSlotDragAndDrop(row, overrideField);
+            RegisterMaterialDragAndDrop(row, mat => overrideField.value = mat);
 
             return row;
         }
@@ -655,7 +655,7 @@ namespace Kanameliser.ColorVariantGenerator
             RegisterMaterialClickHandler(nameLabel, capturedMaterial, headerContent);
 
             // Header D&D for bulk assignment
-            RegisterBulkHeaderDragAndDrop(headerContent, capturedSlots);
+            RegisterMaterialDragAndDrop(headerContent, mat => ApplyBulkOverride(capturedSlots, mat));
         }
 
         private void RegisterMaterialClickHandler(VisualElement element, Material material, VisualElement highlightRow = null)
@@ -820,79 +820,47 @@ namespace Kanameliser.ColorVariantGenerator
         // Drag & Drop
         // ────────────────────────────────────────────────
 
-        private static void RegisterSlotDragAndDrop(VisualElement row, ObjectField overrideField)
+        /// <summary>
+        /// Registers material drag-and-drop handlers on the given element.
+        /// On drop, the provided callback receives the dropped Material.
+        /// </summary>
+        private static void RegisterMaterialDragAndDrop(VisualElement element, Action<Material> onDrop)
         {
             // Use TrickleDown so the event fires even when the cursor is over a child
             // element (e.g. the ObjectField) that would otherwise stop propagation.
-            row.RegisterCallback<DragUpdatedEvent>(evt =>
+            element.RegisterCallback<DragUpdatedEvent>(evt =>
             {
                 if (DragAndDrop.objectReferences.Length > 0 && DragAndDrop.objectReferences[0] is Material)
                 {
                     DragAndDrop.visualMode = DragAndDropVisualMode.Link;
-                    row.AddToClassList("slot-row-drag-hover");
+                    element.AddToClassList("slot-row-drag-hover");
                 }
             }, TrickleDown.TrickleDown);
 
-            row.RegisterCallback<DragLeaveEvent>(evt =>
+            element.RegisterCallback<DragLeaveEvent>(evt =>
             {
-                // Only remove highlight when the cursor truly left the row bounds.
-                // DragLeaveEvent can also fire when the cursor moves to a child element
-                // within the row, in which case we want to keep the highlight.
-                if (!row.worldBound.Contains(evt.mousePosition))
+                // Only remove highlight when the cursor truly left the element bounds.
+                // DragLeaveEvent can also fire when the cursor moves to a child element,
+                // in which case we want to keep the highlight.
+                if (!element.worldBound.Contains(evt.mousePosition))
                 {
-                    row.RemoveFromClassList("slot-row-drag-hover");
+                    element.RemoveFromClassList("slot-row-drag-hover");
                 }
             });
 
-            row.RegisterCallback<DragPerformEvent>(evt =>
+            element.RegisterCallback<DragPerformEvent>(evt =>
             {
-                row.RemoveFromClassList("slot-row-drag-hover");
-                if (DragAndDrop.objectReferences.Length > 0 && DragAndDrop.objectReferences[0] is Material droppedMaterial)
-                {
-                    DragAndDrop.AcceptDrag();
-                    overrideField.value = droppedMaterial;
-                }
-            }, TrickleDown.TrickleDown);
-
-            row.RegisterCallback<DragExitedEvent>(evt =>
-            {
-                row.RemoveFromClassList("slot-row-drag-hover");
-            });
-        }
-
-        private void RegisterBulkHeaderDragAndDrop(VisualElement header, List<ScannedMaterialSlot> slots)
-        {
-            header.RegisterCallback<DragUpdatedEvent>(evt =>
-            {
-                if (DragAndDrop.objectReferences.Length > 0 && DragAndDrop.objectReferences[0] is Material)
-                {
-                    DragAndDrop.visualMode = DragAndDropVisualMode.Link;
-                    header.AddToClassList("slot-row-drag-hover");
-                }
-            }, TrickleDown.TrickleDown);
-
-            header.RegisterCallback<DragLeaveEvent>(evt =>
-            {
-                if (!header.worldBound.Contains(evt.mousePosition))
-                {
-                    header.RemoveFromClassList("slot-row-drag-hover");
-                }
-            });
-
-            var capturedSlots = slots;
-            header.RegisterCallback<DragPerformEvent>(evt =>
-            {
-                header.RemoveFromClassList("slot-row-drag-hover");
+                element.RemoveFromClassList("slot-row-drag-hover");
                 if (DragAndDrop.objectReferences.Length > 0 && DragAndDrop.objectReferences[0] is Material mat)
                 {
                     DragAndDrop.AcceptDrag();
-                    ApplyBulkOverride(capturedSlots, mat);
+                    onDrop(mat);
                 }
             }, TrickleDown.TrickleDown);
 
-            header.RegisterCallback<DragExitedEvent>(evt =>
+            element.RegisterCallback<DragExitedEvent>(evt =>
             {
-                header.RemoveFromClassList("slot-row-drag-hover");
+                element.RemoveFromClassList("slot-row-drag-hover");
             });
         }
 
