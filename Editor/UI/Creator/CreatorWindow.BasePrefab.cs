@@ -247,7 +247,7 @@ namespace Kanameliser.ColorVariantGenerator
                 return;
             }
 
-            // Compare source and base renderers using 4-tier matching, then populate
+            // Compare source and base renderers using 5-tier matching, then populate
             // overrides with material differences (source material → override on base slot)
             var sourceSlots = PrefabScanner.ScanRenderers(sourcePrefab);
             var results = RendererMatcher.CompareRenderers(sourceSlots, _scannedSlots);

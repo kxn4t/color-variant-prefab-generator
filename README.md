@@ -131,16 +131,17 @@ Example: Base `Airi_HonmeiKnit` + Variant `Black` → `Airi_HonmeiKnit_Black.pre
 
 ### Renderer Matching Algorithm
 
-When comparing two Prefabs, the tool uses a 4-tier priority system to match material slots:
+When comparing two Prefabs, the tool uses a 5-tier priority system to match material slots. P1-P4 require `slotIndex` and `rendererType` to match. P5 prefers the same renderer type but falls back to cross-type matching when no same-type fuzzy match exists:
 
 | Priority | Strategy | Description |
 |---|---|---|
-| P1 | Exact path | Same hierarchy path, object name, and slot index |
-| P2 | Same depth | Same hierarchy depth, object name, and slot index |
+| P1 | Exact path | Same hierarchy path, object name, slot index, and renderer type |
+| P2 | Same depth | Same hierarchy depth, object name, slot index, and renderer type |
 | P3 | Name match | Same object name and slot index at any depth |
-| P4 | Fuzzy match | Case-insensitive name match with slot index |
+| P4 | Case-insensitive | Case-insensitive name match with slot index |
+| P5 | Similar name | Names matching after structural normalization (e.g., `Body_01` ≈ `Body_02`) or sharing a common base name (e.g., `Ribbon_blue` ≈ `Ribbon_red`), ranked by a composite score |
 
-When multiple candidates exist at the same priority, tiebreakers are applied in order: base material name match, closest hierarchy depth, then path similarity (Levenshtein distance).
+When multiple candidates exist at the same priority, tiebreakers are applied in order: base material name match, hierarchy path similarity, closest hierarchy depth, then Levenshtein distance on full paths.
 
 ### What Gets Stored
 

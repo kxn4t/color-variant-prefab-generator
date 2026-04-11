@@ -298,7 +298,7 @@ namespace Kanameliser.ColorVariantGenerator
             targetLabel.AddToClassList("match-target-label");
             row.Add(targetLabel);
 
-            // Show material change and match priority (P1=exact path, P2=depth+name, P3=name, P4=case-insensitive)
+            // Show material change and match priority (P1=exact path, P2=depth+name, P3=name, P4=case-insensitive, P5=similar name)
             string baseName = result.targetBaseMaterial?.name ?? "?";
             string overrideName = result.overrideMaterial?.name ?? "?";
             var materialLabel = new Label($"[{baseName} {EditorUIUtility.Arrow} {overrideName}] (P{result.matchPriority})");
