@@ -85,21 +85,17 @@ namespace Kanameliser.ColorVariantGenerator
             _materialSlotsScroll.Clear();
             _slotObjectFields.Clear();
 
+            var (addedPaths, pathToRootName) = BuildAddedRendererInfo();
+
             // In Strict mode, filter out slots from added GameObjects
-            var displaySlots = _scannedSlots;
-            if (_creatorMode == CreatorMode.Strict && _baseInstance != null
-                && PrefabUtility.IsPartOfPrefabInstance(_baseInstance))
+            List<ScannedMaterialSlot> displaySlots;
+            if (_creatorMode == CreatorMode.Strict && addedPaths.Count > 0)
             {
-                var addedPaths = new HashSet<string>();
-                var addedObjects = PrefabUtility.GetAddedGameObjects(_baseInstance);
-                foreach (var added in addedObjects)
-                {
-                    var renderers = added.instanceGameObject.GetComponentsInChildren<Renderer>(true);
-                    foreach (var r in renderers)
-                        addedPaths.Add(GetRendererRelativePath(_baseInstance.transform, r.transform));
-                }
-                if (addedPaths.Count > 0)
-                    displaySlots = _scannedSlots.Where(s => !addedPaths.Contains(s.identifier.rendererPath)).ToList();
+                (displaySlots, _) = SplitSlotsByAddedPaths(_scannedSlots, addedPaths);
+            }
+            else
+            {
+                displaySlots = _scannedSlots;
             }
 
             if (displaySlots.Count == 0)
@@ -116,11 +112,11 @@ namespace Kanameliser.ColorVariantGenerator
 
             if (_bulkMode)
             {
-                RefreshBulkModeUI(displaySlots);
+                RefreshBulkModeUI(displaySlots, addedPaths, pathToRootName);
             }
             else
             {
-                RefreshNormalModeUI(displaySlots);
+                RefreshNormalModeUI(displaySlots, addedPaths, pathToRootName);
             }
         }
 
@@ -129,27 +125,31 @@ namespace Kanameliser.ColorVariantGenerator
         // ────────────────────────────────────────────────
 
         /// <summary>
-        /// Builds a set of renderer paths that belong to added GameObjects.
-        /// Returns empty set when not in Standard mode or no base instance.
+        /// Analyzes added GameObjects and returns renderer paths and a mapping from
+        /// renderer path to its added root object name. Returns empty collections
+        /// when the base instance is not a Prefab instance.
         /// </summary>
-        private HashSet<string> BuildAddedRendererPaths()
+        private (HashSet<string> addedPaths, Dictionary<string, string> pathToRootName) BuildAddedRendererInfo()
         {
             var paths = new HashSet<string>();
-            if (_creatorMode != CreatorMode.Standard) return paths;
-            if (_baseInstance == null || !PrefabUtility.IsPartOfPrefabInstance(_baseInstance)) return paths;
+            var pathToRoot = new Dictionary<string, string>();
+
+            if (_baseInstance == null || !PrefabUtility.IsPartOfPrefabInstance(_baseInstance))
+                return (paths, pathToRoot);
 
             var addedObjects = PrefabUtility.GetAddedGameObjects(_baseInstance);
             foreach (var added in addedObjects)
             {
-                // Collect all renderers under each added root
+                string rootName = added.instanceGameObject.name;
                 var renderers = added.instanceGameObject.GetComponentsInChildren<Renderer>(true);
                 foreach (var r in renderers)
                 {
                     string path = GetRendererRelativePath(_baseInstance.transform, r.transform);
                     paths.Add(path);
+                    pathToRoot[path] = rootName;
                 }
             }
-            return paths;
+            return (paths, pathToRoot);
         }
 
         private static string GetRendererRelativePath(Transform root, Transform target)
@@ -167,33 +167,59 @@ namespace Kanameliser.ColorVariantGenerator
         }
 
         /// <summary>
-        /// Determines which added root GameObject a renderer path belongs to.
-        /// Returns the added root's name, or null if not an added object.
+        /// Splits slots into base Prefab slots and added object slots.
         /// </summary>
-        private string GetAddedRootName(string rendererPath)
+        private static (List<ScannedMaterialSlot> baseSlots, List<ScannedMaterialSlot> addedSlots) SplitSlotsByAddedPaths(
+            List<ScannedMaterialSlot> slots, HashSet<string> addedPaths)
         {
-            if (_baseInstance == null) return null;
-            var addedObjects = PrefabUtility.GetAddedGameObjects(_baseInstance);
-            foreach (var added in addedObjects)
+            if (addedPaths.Count == 0)
+                return (slots, new List<ScannedMaterialSlot>());
+
+            var baseSlots = new List<ScannedMaterialSlot>();
+            var addedSlots = new List<ScannedMaterialSlot>();
+            foreach (var s in slots)
             {
-                string addedPath = GetRendererRelativePath(_baseInstance.transform, added.instanceGameObject.transform);
-                if (rendererPath == addedPath || rendererPath.StartsWith(addedPath + "/"))
-                    return added.instanceGameObject.name;
+                if (addedPaths.Contains(s.identifier.rendererPath))
+                    addedSlots.Add(s);
+                else
+                    baseSlots.Add(s);
             }
-            return null;
+            return (baseSlots, addedSlots);
+        }
+
+        /// <summary>
+        /// Groups added slots by their root object name, renders a section header for each,
+        /// and calls the provided callback to populate the section content.
+        /// </summary>
+        private void AddAddedObjectSections(
+            List<ScannedMaterialSlot> addedSlots,
+            Dictionary<string, string> pathToRootName,
+            Action<IGrouping<string, ScannedMaterialSlot>> renderSection)
+        {
+            var addedByRoot = addedSlots
+                .GroupBy(s => pathToRootName.TryGetValue(s.identifier.rendererPath, out var name) ? name : "")
+                .OrderBy(g => g.Key);
+
+            foreach (var rootGroup in addedByRoot)
+            {
+                var sectionHeader = new Label(rootGroup.Key);
+                sectionHeader.AddToClassList("added-object-header");
+                _materialSlotsScroll.Add(sectionHeader);
+
+                renderSection(rootGroup);
+            }
         }
 
         // ────────────────────────────────────────────────
         // Normal Mode
         // ────────────────────────────────────────────────
 
-        private void RefreshNormalModeUI(List<ScannedMaterialSlot> displaySlots)
+        private void RefreshNormalModeUI(
+            List<ScannedMaterialSlot> displaySlots,
+            HashSet<string> addedPaths,
+            Dictionary<string, string> pathToRootName)
         {
-            var addedPaths = BuildAddedRendererPaths();
-
-            // Split slots into base and added
-            var baseSlots = displaySlots.Where(s => !addedPaths.Contains(s.identifier.rendererPath)).ToList();
-            var addedSlots = displaySlots.Where(s => addedPaths.Contains(s.identifier.rendererPath)).ToList();
+            var (baseSlots, addedSlots) = SplitSlotsByAddedPaths(displaySlots, addedPaths);
 
             var baseGroups = baseSlots
                 .GroupBy(s => s.identifier.rendererPath)
@@ -229,29 +255,15 @@ namespace Kanameliser.ColorVariantGenerator
             // Added object renderers (grouped by added root, with section headers)
             if (addedSlots.Count > 0)
             {
-                // Group by added root object name
-                var addedByRoot = addedSlots
-                    .GroupBy(s => GetAddedRootName(s.identifier.rendererPath) ?? "")
-                    .OrderBy(g => g.Key)
-                    .ToList();
-
-                foreach (var rootGroup in addedByRoot)
-                {
-                    // Section header for this added object
-                    var sectionHeader = new Label(rootGroup.Key);
-                    sectionHeader.AddToClassList("added-object-header");
-                    _materialSlotsScroll.Add(sectionHeader);
-
-                    var rendererGroups = rootGroup
-                        .GroupBy(s => s.identifier.rendererPath)
-                        .OrderBy(g => g.Key)
-                        .ToList();
-
-                    foreach (var group in rendererGroups)
+                AddAddedObjectSections(addedSlots, pathToRootName,
+                    rootGroup =>
                     {
-                        AddRendererGroup(group, toggleAll);
-                    }
-                }
+                        var rendererGroups = rootGroup
+                            .GroupBy(s => s.identifier.rendererPath)
+                            .OrderBy(g => g.Key);
+                        foreach (var group in rendererGroups)
+                            AddRendererGroup(group, toggleAll);
+                    });
             }
         }
 
@@ -480,12 +492,12 @@ namespace Kanameliser.ColorVariantGenerator
         // Bulk Mode
         // ────────────────────────────────────────────────
 
-        private void RefreshBulkModeUI(List<ScannedMaterialSlot> displaySlots)
+        private void RefreshBulkModeUI(
+            List<ScannedMaterialSlot> displaySlots,
+            HashSet<string> addedPaths,
+            Dictionary<string, string> pathToRootName)
         {
-            var addedPaths = BuildAddedRendererPaths();
-
-            var baseSlots = displaySlots.Where(s => !addedPaths.Contains(s.identifier.rendererPath)).ToList();
-            var addedSlots = displaySlots.Where(s => addedPaths.Contains(s.identifier.rendererPath)).ToList();
+            var (baseSlots, addedSlots) = SplitSlotsByAddedPaths(displaySlots, addedPaths);
 
             var baseMaterialGroups = GroupByEffectiveMaterial(baseSlots);
             var addedMaterialGroups = GroupByEffectiveMaterial(addedSlots);
@@ -516,23 +528,13 @@ namespace Kanameliser.ColorVariantGenerator
             // Added object slots (grouped by added root, with section headers)
             if (addedSlots.Count > 0)
             {
-                var addedByRoot = addedSlots
-                    .GroupBy(s => GetAddedRootName(s.identifier.rendererPath) ?? "")
-                    .OrderBy(g => g.Key)
-                    .ToList();
-
-                foreach (var rootGroup in addedByRoot)
-                {
-                    var sectionHeader = new Label(rootGroup.Key);
-                    sectionHeader.AddToClassList("added-object-header");
-                    _materialSlotsScroll.Add(sectionHeader);
-
-                    var materialGroups = GroupByEffectiveMaterial(rootGroup.ToList());
-                    foreach (var group in materialGroups)
+                AddAddedObjectSections(addedSlots, pathToRootName,
+                    rootGroup =>
                     {
-                        AddBulkMaterialGroup(group, toggleAll);
-                    }
-                }
+                        var materialGroups = GroupByEffectiveMaterial(rootGroup.ToList());
+                        foreach (var group in materialGroups)
+                            AddBulkMaterialGroup(group, toggleAll);
+                    });
             }
         }
 
