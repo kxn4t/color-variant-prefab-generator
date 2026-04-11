@@ -316,7 +316,7 @@ namespace Kanameliser.ColorVariantGenerator
                     basePrefabAsset = parentPrefab,
                     hierarchyInstance = _baseInstance,
                     materialOverrides = overridesList,
-                    options = _standardModeOptions,
+                    options = BuildStandardModeOptions(),
                     variantName = variantName,
                     outputPath = outputPath,
                     namingTemplate = namingTemplate

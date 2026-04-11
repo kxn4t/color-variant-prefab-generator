@@ -15,7 +15,6 @@ namespace Kanameliser.ColorVariantGenerator
         private Label _strictIndicatorLabel;
 
         private StructuralChangeSummary _structuralSummary;
-        private StandardModeOptions _standardModeOptions = new StandardModeOptions();
 
         private const string CreatorModeKey = "ColorVariantGenerator.CreatorMode";
         private const string IncludePropertyChangesKey = "ColorVariantGenerator.IncludePropertyChanges";
@@ -23,12 +22,23 @@ namespace Kanameliser.ColorVariantGenerator
         private CreatorMode _creatorMode = CreatorMode.Standard;
 
         /// <summary>
-        /// Restores persisted mode and options. Called early in CreateGUI.
+        /// Restores persisted mode. Called early in CreateGUI.
         /// </summary>
         private void RestoreCreatorMode()
         {
             _creatorMode = (CreatorMode)EditorPrefs.GetInt(CreatorModeKey, (int)CreatorMode.Standard);
-            _standardModeOptions.includePropertyChanges = EditorPrefs.GetBool(IncludePropertyChangesKey, false);
+        }
+
+        /// <summary>
+        /// Builds StandardModeOptions from the current EditorPrefs state.
+        /// EditorPrefs is the single source of truth for these options.
+        /// </summary>
+        private static StandardModeOptions BuildStandardModeOptions()
+        {
+            return new StandardModeOptions
+            {
+                includePropertyChanges = EditorPrefs.GetBool(IncludePropertyChangesKey, false)
+            };
         }
 
         /// <summary>
@@ -45,13 +55,12 @@ namespace Kanameliser.ColorVariantGenerator
 
             _includePropertyChangesToggle = new Toggle(
                 Localization.S("creator.standard.includePropertyChanges"));
-            _includePropertyChangesToggle.value = _standardModeOptions.includePropertyChanges;
+            _includePropertyChangesToggle.value = EditorPrefs.GetBool(IncludePropertyChangesKey, false);
             _includePropertyChangesToggle.tooltip =
                 Localization.S("creator.standard.includePropertyChanges:tooltip");
             _includePropertyChangesToggle.AddToClassList("standard-option-toggle");
             _includePropertyChangesToggle.RegisterValueChangedCallback(evt =>
             {
-                _standardModeOptions.includePropertyChanges = evt.newValue;
                 EditorPrefs.SetBool(IncludePropertyChangesKey, evt.newValue);
             });
             _standardOptionsContainer.Add(_includePropertyChangesToggle);
