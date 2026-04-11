@@ -49,7 +49,7 @@ Localization層 (Localization.cs — #if CVG_HAS_NDMF で条件分岐)
 
 - **ColorVariantData.cs** — 共通データモデル（`MaterialSlotIdentifier`, `MaterialOverride`, `ScannedMaterialSlot`, `RendererMatchResult`, `GenerationResult`等）
 - **PrefabScanner** — Prefab/Hierarchyインスタンスから全Rendererとマテリアルスロットをスキャン
-- **RendererMatcher** — 4段階優先度マッチングアルゴリズム（P1: 完全パス一致、P2: 同深度+同名、P3: 同名のみ、P4: 大文字小文字無視）。タイブレーク: マテリアル名一致 → 深度近接 → レーベンシュタイン距離
+- **RendererMatcher** — 5段階優先度マッチングアルゴリズム（P1: 完全パス一致、P2: 同深度+同名、P3: 同名（深度不問）、P4: 大文字小文字無視、P5: 類似名）。P1-P4で`slotIndex`+`rendererType`のハードフィルター。P5は同型優先＋cross-type fallback。タイブレーク: マテリアル名一致 → 階層パス類似度 → 深度近接 → レーベンシュタイン距離。設計詳細は [docs/matching-algorithm-design.md](docs/matching-algorithm-design.md) を参照
 - **PrefabVariantGenerator** — マテリアルのみのオーバーライドでPrefab Variantを生成。常に新規インスタンスから生成（プレビューからは生成しない）
 - **VariantAnalyzer** — 既存Prefab Variantを解析し、ベース名をプレフィックスとして除去してバリアント名を導出
 

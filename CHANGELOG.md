@@ -12,6 +12,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Improved
+
+- **Renderer Matching Algorithm** — Exact name matches work the same as before. When no exact match is found, the algorithm now tries score-based similar-name matching as a last resort, so color variants and numbered duplicates can be matched where possible
+  - **Color variants** — `Ribbon_blue` ↔ `Ribbon_red`, `Kutsu kuro` ↔ `Kutsu shiro`, `top-blue` ↔ `top-red`
+  - **Numbered/versioned duplicates** — `Body_01` ↔ `Body_02`, `Skirt (1)` ↔ `Skirt (2)`, `Hair.001` ↔ `Hair.002`
+  - **Same-name disambiguation** — When multiple objects share the same name (e.g., `Mesh` under `Jacket/`, `Skirt/`, `Boots/`), parent hierarchy similarity is used to match them correctly
+
+---
+
+### 改善
+
+- **レンダラーマッチングアルゴリズム** — 名前が完全一致するものは従来通りにマッチング。完全一致が見つからない場合に、最終手段としてスコアリングに基づく類似名マッチングを試みるようになり、色違いや番号違いもなるべく自動的に対応付けされるように改善しました
+  - **色違い** — `Ribbon_blue` ↔ `Ribbon_red`、`Kutsu kuro` ↔ `Kutsu shiro`、`top-blue` ↔ `top-red`
+  - **番号・バージョン違い** — `Body_01` ↔ `Body_02`、`Skirt (1)` ↔ `Skirt (2)`、`Hair.001` ↔ `Hair.002`
+  - **同名オブジェクトの振り分け** — `Jacket/Mesh`・`Skirt/Mesh`・`Boots/Mesh`のように同じ名前のオブジェクトが複数ある場合、親の階層構造の類似度で正しく対応付けるように改善
+
 ## [0.2.0] - 2026-02-19
 
 ### Added
@@ -43,7 +59,7 @@ Initial release.
 - **CV Creator** — Create color variants one at a time with real-time Scene preview and full Undo/Redo support
 - **Batch Generator** — Generate Prefab Variants in bulk from existing color prefabs. Material differences are detected automatically
 - **Material Browser** — Browse materials in a grid or list view, and assign them to slots via drag-and-drop
-- **Smart Renderer Matching** — Automatically maps material slots between source and base prefabs using a 4-tier matching algorithm
+- **Smart Renderer Matching** — Automatically maps material slots between source and base prefabs using a multi-tier matching algorithm
 - **Naming Template** — Customize output file names with `{BaseName}` and `{VariantName}` placeholders. Trailing `_Base` is auto-stripped
 - **Localization** — English and Japanese UI (Japanese requires NDMF 1.11.0+)
 
@@ -56,6 +72,6 @@ Initial release.
 - **CV Creator** — リアルタイムのシーンプレビューとUndo/Redoに対応し、カラーバリアントを1つずつ作成
 - **Batch Generator** — 既存のカラーPrefabからPrefab Variantを一括生成。マテリアルの差分は自動検出
 - **マテリアルブラウザー** — グリッド・リスト表示でマテリアルを閲覧し、ドラッグ＆ドロップでスロットに割り当て
-- **スマートマッチング** — 4段階のマッチングアルゴリズムでソースとベースPrefab間のマテリアルスロットを自動対応付け
+- **スマートマッチング** — 多段階のマッチングアルゴリズムでソースとベースPrefab間のマテリアルスロットを自動対応付け
 - **命名テンプレート** — `{BaseName}`・`{VariantName}` で出力ファイル名をカスタマイズ。末尾の `_Base` は自動除去
 - **ローカライズ** — 英語・日本語UIに対応（日本語はNDMF 1.11.0以上が必要）
