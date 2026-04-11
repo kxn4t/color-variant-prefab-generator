@@ -52,7 +52,7 @@ namespace Kanameliser.ColorVariantGenerator
             // Use GetObjectOverrides to detect only actual overrides visible in the Inspector.
             // GetPropertyModifications returns internal/default values that are not real overrides.
             var objectOverrides = PrefabUtility.GetObjectOverrides(hierarchyInstance, true);
-            var addedInstanceIds = BuildAddedInstanceIds(addedObjects);
+            var addedInstanceIds = BuildAddedInstanceIds(hierarchyInstance);
 
             foreach (var objectOverride in objectOverrides)
             {
@@ -99,8 +99,7 @@ namespace Kanameliser.ColorVariantGenerator
             var allModifications = PrefabUtility.GetPropertyModifications(hierarchyInstance);
             if (allModifications == null) return Array.Empty<PropertyModification>();
 
-            var addedObjects = PrefabUtility.GetAddedGameObjects(hierarchyInstance);
-            var addedInstanceIds = BuildAddedInstanceIds(addedObjects);
+            var addedInstanceIds = BuildAddedInstanceIds(hierarchyInstance);
 
             // Build set of instance IDs for objects that have actual overrides (visible in Inspector)
             var objectOverrides = PrefabUtility.GetObjectOverrides(hierarchyInstance, true);
@@ -508,9 +507,10 @@ namespace Kanameliser.ColorVariantGenerator
         /// under each added root. Used to identify whether a given object belongs
         /// to an added subtree.
         /// </summary>
-        private static HashSet<int> BuildAddedInstanceIds(List<AddedGameObject> addedObjects)
+        private static HashSet<int> BuildAddedInstanceIds(GameObject hierarchyInstance)
         {
             var ids = new HashSet<int>();
+            var addedObjects = PrefabUtility.GetAddedGameObjects(hierarchyInstance);
             foreach (var added in addedObjects)
                 CollectInstanceIds(added.instanceGameObject.transform, ids);
             return ids;
