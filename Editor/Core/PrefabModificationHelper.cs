@@ -335,30 +335,28 @@ namespace Kanameliser.ColorVariantGenerator
         private static void MapTransformHierarchy(
             Transform sourceRoot, Transform targetRoot, Dictionary<Object, Object> mapping)
         {
-            // Map the root objects and their components
             MapObjectAndComponents(sourceRoot, targetRoot, mapping);
 
-            // Recursively map children by index (prefab instances maintain child order)
-            int childCount = Math.Min(sourceRoot.childCount, targetRoot.childCount);
-            for (int i = 0; i < childCount; i++)
+            // Build a name-to-child lookup for target's direct children.
+            // This avoids index-based matching which breaks when added/removed
+            // objects shift the child order between source and target.
+            var targetChildByName = new Dictionary<string, Transform>();
+            for (int i = 0; i < targetRoot.childCount; i++)
+            {
+                var child = targetRoot.GetChild(i);
+                // First occurrence wins — duplicate names are rare in prefab hierarchies
+                if (!targetChildByName.ContainsKey(child.name))
+                    targetChildByName[child.name] = child;
+            }
+
+            for (int i = 0; i < sourceRoot.childCount; i++)
             {
                 var sourceChild = sourceRoot.GetChild(i);
-                var targetChild = targetRoot.GetChild(i);
-
-                // Verify names match to avoid misalignment from added/removed objects
-                if (sourceChild.name == targetChild.name)
+                if (targetChildByName.TryGetValue(sourceChild.name, out var targetChild))
                 {
                     MapTransformHierarchy(sourceChild, targetChild, mapping);
                 }
-                else
-                {
-                    // Names don't match — try to find by name
-                    var matchedTarget = targetRoot.Find(sourceChild.name);
-                    if (matchedTarget != null)
-                    {
-                        MapTransformHierarchy(sourceChild, matchedTarget, mapping);
-                    }
-                }
+                // else: added object — no corresponding target, skip
             }
         }
 
@@ -368,19 +366,9 @@ namespace Kanameliser.ColorVariantGenerator
             mapping[source.gameObject] = target.gameObject;
             mapping[source] = target;
 
+            // Map components by type and order within each type
             var sourceComponents = source.GetComponents<Component>();
             var targetComponents = target.GetComponents<Component>();
-
-            // Map components by type and order
-            var sourceByType = new Dictionary<Type, List<Component>>();
-            foreach (var comp in sourceComponents)
-            {
-                if (comp == null) continue;
-                var type = comp.GetType();
-                if (!sourceByType.ContainsKey(type))
-                    sourceByType[type] = new List<Component>();
-                sourceByType[type].Add(comp);
-            }
 
             var targetByType = new Dictionary<Type, List<Component>>();
             foreach (var comp in targetComponents)
@@ -392,15 +380,22 @@ namespace Kanameliser.ColorVariantGenerator
                 targetByType[type].Add(comp);
             }
 
-            foreach (var kvp in sourceByType)
+            // Track how many components of each type we've matched so far
+            var typeIndex = new Dictionary<Type, int>();
+            foreach (var comp in sourceComponents)
             {
-                List<Component> targetList;
-                if (!targetByType.TryGetValue(kvp.Key, out targetList)) continue;
+                if (comp == null) continue;
+                var type = comp.GetType();
 
-                int count = Math.Min(kvp.Value.Count, targetList.Count);
-                for (int i = 0; i < count; i++)
+                if (!targetByType.TryGetValue(type, out var targetList)) continue;
+
+                if (!typeIndex.TryGetValue(type, out int idx))
+                    idx = 0;
+
+                if (idx < targetList.Count)
                 {
-                    mapping[kvp.Value[i]] = targetList[i];
+                    mapping[comp] = targetList[idx];
+                    typeIndex[type] = idx + 1;
                 }
             }
         }
