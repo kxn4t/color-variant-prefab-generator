@@ -98,16 +98,31 @@ Hierarchyインスタンス
     ▼
 PrefabVariantGenerator.GenerateStandardVariant(StandardGenerationRequest)
     │
-    ├─ Step 1: ApplyRemovedGameObjects()   削除の転写
-    ├─ Step 2: ApplyModifications()        プロパティ変更の転写（options次第でフィルター）
-    ├─ Step 3: CopyAddedGameObjects()      追加の転写
-    └─ Step 4: マテリアルオーバーライド適用
+    ├─ includePropertyChanges = false  →  GenerateStandardVariantFiltered()
+    │     ├─ Step 1: ApplyRemovedGameObjects()   削除の転写
+    │     ├─ Step 2: ApplyModifications()        GameObject自体のプロパティ変更を転写
+    │     │                                       （rename / active / tag / layer /
+    │     │                                        staticFlags 等。Transform・Component
+    │     │                                        プロパティ変更は除外）
+    │     ├─ Step 3: CopyAddedGameObjects()      追加の転写
+    │     └─ Step 4: マテリアルオーバーライド適用
+    │
+    └─ includePropertyChanges = true   →  GenerateStandardVariantNative()
+          ├─ Step 1: Object.Instantiate(hierarchyInstance) で複製
+          │            → 元のシーンインスタンスのPrefab接続を保護
+          ├─ Step 2: PrefabUtility.SaveAsPrefabAsset(duplicate, path)
+          │            → Unityが認識するoverride全部を保存
+          ├─ Step 3: PrefabUtility.LoadPrefabContents(path)
+          ├─ Step 4: マテリアルオーバーライド適用
+          ├─ Step 5: PrefabUtility.SaveAsPrefabAsset(contents, path)
+          ├─ Step 6: PrefabUtility.UnloadPrefabContents(contents)
+          └─ Step 7: Object.DestroyImmediate(duplicate)
     │
     ▼
 Prefab Variantファイル (.prefab)
 ```
 
-Step順序には意味がある: `ApplyModifications`は`SetPropertyModifications`で修正リストを置換するため、先に`CopyAddedGameObjects`を行うと追加オブジェクトが破棄される。そのため削除 → プロパティ → 追加 → マテリアルの順で処理する。
+Filteredパスのstep順序には意味がある: `ApplyModifications`は`SetPropertyModifications`で修正リストを置換するため、先に`CopyAddedGameObjects`を行うと追加オブジェクトが破棄される。そのため削除 → プロパティ → 追加 → マテリアルの順で処理する。Nativeパスは必ずHierarchyインスタンスを `Object.Instantiate` で複製してから保存する: `PrefabUtility.SaveAsPrefabAsset` は引数のGameObjectのPrefab接続を新アセット側へ張り替える副作用があり、シーン上のユーザー操作対象を直接渡すと元のbase Prefabへの接続が失われるため。
 
 ### CV Creator — Prefabからのインポート
 
@@ -158,7 +173,9 @@ PrefabScanner.ScanRenderers()       PrefabScanner.ScanRenderers()
 ## 設計上の注意点
 
 - **Prefab Variant生成時、プレビューインスタンスは使用しない**: 常に`PrefabUtility.InstantiatePrefab()`で新規インスタンスを生成し、構造変更（Standardモードのみ）とマテリアルオーバーライドを適用して保存する。プレビュー中にHierarchy上で意図せず変更された他のプロパティ（Transform位置など）がVariantに混入することを防ぐため。Standardモードでも構造変更は`PrefabModificationHelper`経由で選択的に転写し、プレビューインスタンス自体は保存しない。
-- **Standard / Strictモード**: `CreatorMode`列挙型で管理。`EditorPrefs`に永続化。Strictモードは従来の挙動（マテリアルオーバーライドのみ）を維持するための退避ルート。Standardモードでは`StandardModeOptions.includePropertyChanges`でTransform・コンポーネントのプロパティ変更を取り込むかを制御する（デフォルトはOFFで、リネームとアクティブ状態切替のみ取り込む）。
+- **Standard / Strictモード**: `CreatorMode`列挙型で管理。`EditorPrefs`に永続化。Strictモードは従来の挙動（マテリアルオーバーライドのみ）を維持するための退避ルート。Standardモードは`StandardModeOptions.includePropertyChanges`で2経路に分岐する:
+  - **OFF（デフォルト）**: ベースPrefabを新規インスタンス化し、`PrefabModificationHelper`経由で「GameObjectの追加・削除」と「既存GameObject自体のプロパティ変更（`m_Name` / `m_IsActive` / `m_Layer` / `m_TagString` / `m_StaticEditorFlags` 等）」を選択的に転写する影響範囲の限定されたパス。Transform・Componentのプロパティ変更とコンポーネントの追加・削除は意図的に除外する
+  - **ON**: Hierarchyインスタンスを `Object.Instantiate` で複製してから `PrefabUtility.SaveAsPrefabAsset` で保存し、Unityが認識するoverride全部（Transform・コンポーネントのプロパティ・コンポーネント追加削除など）を取り込む。マテリアルoverrideは `PrefabUtility.LoadPrefabContents` で再オープンして上から適用する。複製ステップは必須で、Hierarchyインスタンスを直接渡すと元のbase Prefabへの接続が新Variantへ張り替えられてしまうのを防ぐ
 - **`MapTransformHierarchy`は名前ベース**: Hierarchyインスタンスと新規Variantインスタンスの間でオブジェクト対応を取る際、インデックスではなく名前で子を検索する。追加・削除で子の順序がずれても安全にマッピングできる。同名の子が複数ある場合は最初に出現したものを優先する。
 - **`CompareRenderers`は差分のみ返す**: マテリアルが同じスロットは結果に含まれない。未マッチのソーススロットは`targetSlot = null`で含まれる（ただしベースマテリアルが`null`のスロットは除外）。
 - **`MatchRenderers()`と`AnalyzeVariant()`**: 公開APIとして存在するが、組み込みUIからは`CompareRenderers`と直接比較方式に移行済み。

@@ -83,6 +83,22 @@ It is also convenient for the task of assigning materials to models.
 
 > **Folder Assignment:** You can also assign Output Path and Material Folder by dragging and dropping a folder from the Project window.
 
+#### Generation Modes (Standard / Strict)
+
+CV Creator has two generation modes, toggled via the options menu (▼) on the Base Prefab field. The default is **Standard**.
+
+| Mode | What's saved |
+|---|---|
+| **Standard** (default) | Material overrides **plus** GameObject-level changes on the Hierarchy instance (added/removed GameObjects and property overrides on existing GameObjects: name, active state, tag, layer, static flags, etc.). An **Include Transform/component changes** option in Output Settings switches to a path that saves the Hierarchy instance directly as a Variant so every override Unity recognizes is included (Transform changes, component property changes, components added/removed, etc.) |
+| **Strict** | Material overrides only. Any structural or property changes on the Hierarchy instance are ignored |
+
+In Standard mode, Renderers under newly added GameObjects appear as a dedicated section at the end of the slot list so you can assign overrides to slots that don't exist on the base Prefab.
+
+> **Tip:** Pick a mode based on what you want to save:
+> - **Material changes only** — Strict mode. Nothing other than material changes is saved, so future base Prefab edits propagate cleanly to all Variants
+> - **Material changes + GameObject add/remove** — Standard mode (default, option OFF). Keeps the saved footprint as small as possible
+> - **Also save Transform / component changes** — Standard mode with **Include Transform/component changes** ON. Saves all changes just like Unity's built-in "Save as Prefab Variant"
+
 #### Clear Overrides and Revert Modes
 
 To reset material changes, use the **Clear Overrides** button. The dropdown (▾) offers three revert modes:
@@ -145,10 +161,12 @@ When multiple candidates exist at the same priority, tiebreakers are applied in 
 
 ### What Gets Stored
 
-Generated Prefab Variants **only** contain material overrides. No transforms, component changes, or other properties are stored. This means:
+What ends up in the generated Prefab Variant depends on the CV Creator mode:
 
-- Base Prefab changes (bone adjustments, component settings, etc.) are automatically propagated to all Variants
-- No risk of unintended property drift between Variants
+- **Strict mode** — Material overrides only. No transforms, component changes, or other properties. Base Prefab changes (bone adjustments, component settings, etc.) propagate cleanly to every Variant, with no risk of unintended property drift.
+- **Standard mode** (default) — Material overrides plus GameObject-level changes (added/removed GameObjects, renames, active state, tag, layer, etc.). With the **Include Transform/component changes** option ON, the Hierarchy instance is saved directly so any override Unity recognizes is preserved.
+
+The **Batch Generator** always produces material-only Variants, regardless of CV Creator mode.
 
 ## License
 

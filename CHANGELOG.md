@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **CV Creator: Standard Mode** — New default mode that preserves structural changes made to the Hierarchy instance (added/removed GameObjects, renames, active state toggles) and writes them into the generated Prefab Variant alongside material overrides. An optional toggle also includes Transform and component property changes on existing objects. The previous material-only behavior remains available as **Strict Mode** via the Options menu on the Base Prefab field
+- **CV Creator: Standard Mode** — New default mode that preserves GameObject-level changes made to the Hierarchy instance (added/removed GameObjects plus property overrides on existing GameObjects: name, active state, tag, layer, static flags, etc.) and writes them into the generated Prefab Variant alongside material overrides. An optional toggle switches to a "save the Hierarchy instance directly as a Prefab Variant" path that captures every override Unity recognizes (Transform changes, component property changes, components added/removed, etc.). The previous material-only behavior remains available as **Strict Mode** via the Options menu on the Base Prefab field
   - **Added objects in slot UI** — GameObjects added on the Hierarchy instance show up as a dedicated section in both normal and bulk slot views, letting you assign override materials to Renderers that don't exist on the base Prefab
 
 ### Improved
@@ -28,7 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 追加
 
-- **CV Creator: Standard モード** — Hierarchyインスタンス上で行った構造変更（GameObjectの追加・削除、リネーム、アクティブ状態の切り替え）をPrefab Variantに反映する新しいデフォルトモード。既存オブジェクトのTransformやコンポーネントのプロパティ変更も、オプションで一緒に含めることができます。従来のマテリアル差し替えのみの挙動は、Base Prefabフィールド横のOptionsメニューから **Strict モード** として引き続き利用可能
+- **CV Creator: Standard モード** — Hierarchyインスタンス上で行ったGameObjectレベルの変更（GameObjectの追加・削除、および既存GameObject自体のプロパティ変更：rename・active state・Tag・Layer・StaticEditorFlags等）をPrefab Variantに反映する新しいデフォルトモード。オプションを有効にすると「HierarchyインスタンスをそのままPrefab Variantとして保存」する経路に切り替わり、Unityが認識するoverride（Transform変更、コンポーネントのプロパティ変更、コンポーネントの追加・削除など）をすべて取り込みます。従来のマテリアル差し替えのみの挙動は、Base Prefabフィールド横のOptionsメニューから **Strict モード** として引き続き利用可能。販売物の制作時などはマテリアル変更のみが反映されるStrictモードの利用を推奨。
   - **追加オブジェクトのスロットUI** — Hierarchyインスタンス上で追加したGameObjectが、通常モード・一括モードの両方で専用セクションとして表示され、ベースPrefabに存在しないRendererにもオーバーライドマテリアルを割り当て可能
 
 ### 改善

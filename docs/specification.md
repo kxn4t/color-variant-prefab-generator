@@ -69,13 +69,13 @@ CV Creatorは2つの生成モードを持ち、Base Prefabフィールド横のO
 
 | モード | 保存される内容 |
 |---|---|
-| **Standard**（デフォルト） | マテリアルオーバーライド＋Hierarchyインスタンス上で行った構造変更（GameObjectの追加・削除、リネーム、アクティブ状態の切り替え）。オプションで既存オブジェクトのTransform・コンポーネントのプロパティ変更も含められる |
+| **Standard**（デフォルト） | マテリアルオーバーライド＋Hierarchyインスタンス上で行ったGameObjectレベルの変更（GameObjectの追加・削除、および既存GameObject自体のプロパティ変更：rename・active state・Tag・Layer・StaticEditorFlags等）。オプションでHierarchyインスタンスをそのままPrefab Variantとして保存し、Unityが認識するoverride（Transform変更、コンポーネントのプロパティ変更、コンポーネントの追加・削除など）をすべて含めて保存できる |
 | **Strict** | マテリアルオーバーライドのみ。Hierarchyインスタンス上の構造変更は一切反映されない |
 
 **Standardモード固有のUI**:
 
 - 追加したGameObject配下のRendererは、スロットUIの末尾に追加オブジェクト用の専用セクションとして表示され、ベースPrefabには存在しないスロットにもオーバーライドを割り当てられる
-- Outputセクション内に「Include Transform/component changes」チェックボックスが表示され、既存オブジェクトのプロパティ変更を取り込むかを切り替える（デフォルトOFF）
+- Outputセクション内に「Include Transform/component changes」チェックボックスが表示され、有効時はHierarchyインスタンスをそのままPrefab Variantとして保存する経路に切り替わる（デフォルトOFF）
 - 構造変更のみで生成可能（マテリアルオーバーライド0件でも、構造変更があれば警告ダイアログなしで生成される）
 
 **Strictモード固有のUI**:
