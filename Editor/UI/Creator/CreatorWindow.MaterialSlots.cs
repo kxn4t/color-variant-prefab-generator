@@ -342,28 +342,37 @@ namespace Kanameliser.ColorVariantGenerator
                 row.AddToClassList("slot-row-unchanged");
             }
 
-            // Slot index
+            AddBaseMaterialElements(row, slot);
+            var overridePreview = AddOverrideElements(row, slot, hasOverride, currentOverride);
+            var overrideField = AddOverrideField(row, slot);
+            AddSlotClearButton(row, overrideField);
+            RegisterSlotRowHandlers(row, slot, overridePreview, overrideField);
+
+            return row;
+        }
+
+        private void AddBaseMaterialElements(VisualElement row, ScannedMaterialSlot slot)
+        {
             var indexLabel = new Label($"[{slot.identifier.slotIndex}]");
             indexLabel.AddToClassList("slot-index");
             row.Add(indexLabel);
 
-            // Base material preview thumbnail
             var basePreview = new Image();
             basePreview.AddToClassList("slot-base-preview");
             EditorUIUtility.SetMaterialPreview(basePreview, slot.baseMaterial);
             row.Add(basePreview);
 
-            // Base material name
             var baseName = new Label(slot.baseMaterial != null ? slot.baseMaterial.name : Localization.S("creator.materialSlots.none"));
             baseName.AddToClassList("slot-base-name");
             row.Add(baseName);
 
-            // Arrow
             var arrow = new Label(EditorUIUtility.Arrow);
             arrow.AddToClassList("slot-arrow");
             row.Add(arrow);
+        }
 
-            // Override material preview thumbnail
+        private Image AddOverrideElements(VisualElement row, ScannedMaterialSlot slot, bool hasOverride, Material currentOverride)
+        {
             var overridePreview = new Image();
             overridePreview.AddToClassList("slot-override-preview");
             if (hasOverride)
@@ -371,8 +380,11 @@ namespace Kanameliser.ColorVariantGenerator
                 EditorUIUtility.SetMaterialPreview(overridePreview, currentOverride);
             }
             row.Add(overridePreview);
+            return overridePreview;
+        }
 
-            // Override material ObjectField
+        private ObjectField AddOverrideField(VisualElement row, ScannedMaterialSlot slot)
+        {
             var overrideField = new ObjectField
             {
                 objectType = typeof(Material),
@@ -393,10 +405,12 @@ namespace Kanameliser.ColorVariantGenerator
             });
             row.Add(overrideField);
 
-            // Store ObjectField reference for browser integration
             _slotObjectFields[slot.identifier] = overrideField;
+            return overrideField;
+        }
 
-            // Clear button
+        private void AddSlotClearButton(VisualElement row, ObjectField overrideField)
+        {
             var clearBtn = new Button(() =>
             {
                 overrideField.value = null;
@@ -407,6 +421,12 @@ namespace Kanameliser.ColorVariantGenerator
             };
             clearBtn.AddToClassList("slot-clear-button");
             row.Add(clearBtn);
+        }
+
+        private void RegisterSlotRowHandlers(
+            VisualElement row, ScannedMaterialSlot slot, Image overridePreview, ObjectField overrideField)
+        {
+            var capturedSlot = slot;
 
             // Click override preview to select the override material in the Inspector
             overridePreview.RegisterCallback<MouseDownEvent>(evt =>
@@ -432,8 +452,6 @@ namespace Kanameliser.ColorVariantGenerator
             });
 
             RegisterMaterialDragAndDrop(row, mat => overrideField.value = mat);
-
-            return row;
         }
 
         private IVisualElementScheduledItem _slotHighlightSchedule;
@@ -587,13 +605,25 @@ namespace Kanameliser.ColorVariantGenerator
         private void CreateBulkGroupHeader(VisualElement headerContent, Material effectiveMaterial,
             List<ScannedMaterialSlot> slots, int overrideCount)
         {
-            // Material thumbnail
+            var (thumbnail, nameLabel) = AddBulkHeaderInfo(headerContent, effectiveMaterial, slots.Count, overrideCount);
+            AddBulkHeaderControls(headerContent, effectiveMaterial, slots, overrideCount);
+
+            // Click thumbnail/name to select material in Inspector + highlight in browser
+            RegisterMaterialClickHandler(thumbnail, effectiveMaterial, headerContent);
+            RegisterMaterialClickHandler(nameLabel, effectiveMaterial, headerContent);
+
+            // Header D&D for bulk assignment
+            RegisterMaterialDragAndDrop(headerContent, mat => ApplyBulkOverride(slots, mat));
+        }
+
+        private (Image thumbnail, Label nameLabel) AddBulkHeaderInfo(
+            VisualElement headerContent, Material effectiveMaterial, int slotCount, int overrideCount)
+        {
             var thumbnail = new Image();
             thumbnail.AddToClassList("slot-base-preview");
             EditorUIUtility.SetMaterialPreview(thumbnail, effectiveMaterial);
             headerContent.Add(thumbnail);
 
-            // Material name
             string matName = effectiveMaterial != null
                 ? effectiveMaterial.name
                 : Localization.S("creator.materialSlots.none");
@@ -602,12 +632,10 @@ namespace Kanameliser.ColorVariantGenerator
             nameLabel.AddToClassList("bulk-group-name");
             headerContent.Add(nameLabel);
 
-            // Slot count
-            var countLabel = new Label($"({Localization.S("creator.bulk.slotsCount", slots.Count)})");
+            var countLabel = new Label($"({Localization.S("creator.bulk.slotsCount", slotCount)})");
             countLabel.AddToClassList("bulk-group-count");
             headerContent.Add(countLabel);
 
-            // Override count badge (only shown when overrides exist)
             if (overrideCount > 0)
             {
                 var badge = new Label(overrideCount.ToString());
@@ -615,19 +643,22 @@ namespace Kanameliser.ColorVariantGenerator
                 headerContent.Add(badge);
             }
 
-            // Arrow
+            return (thumbnail, nameLabel);
+        }
+
+        private void AddBulkHeaderControls(
+            VisualElement headerContent, Material effectiveMaterial, List<ScannedMaterialSlot> slots, int overrideCount)
+        {
             var arrow = new Label(EditorUIUtility.Arrow);
             arrow.AddToClassList("slot-arrow");
             headerContent.Add(arrow);
 
-            // Override ObjectField for bulk assignment
             var overrideField = new ObjectField
             {
                 objectType = typeof(Material),
                 allowSceneObjects = false
             };
             overrideField.AddToClassList("slot-override-field");
-            overrideField.AddToClassList("bulk-header-override-field");
 
             var capturedSlots = slots;
             overrideField.RegisterValueChangedCallback(evt =>
@@ -640,24 +671,14 @@ namespace Kanameliser.ColorVariantGenerator
             });
             headerContent.Add(overrideField);
 
-            // Clear button
-            bool hasOverrides = overrideCount > 0;
             var clearBtn = new Button(() => ClearBulkOverride(capturedSlots))
             {
                 text = EditorUIUtility.Cross,
                 tooltip = Localization.S("creator.bulk.clearGroup.tooltip")
             };
             clearBtn.AddToClassList("slot-clear-button");
-            clearBtn.SetEnabled(hasOverrides);
+            clearBtn.SetEnabled(overrideCount > 0);
             headerContent.Add(clearBtn);
-
-            // Click thumbnail/name to select material in Inspector + highlight in browser
-            var capturedMaterial = effectiveMaterial;
-            RegisterMaterialClickHandler(thumbnail, capturedMaterial, headerContent);
-            RegisterMaterialClickHandler(nameLabel, capturedMaterial, headerContent);
-
-            // Header D&D for bulk assignment
-            RegisterMaterialDragAndDrop(headerContent, mat => ApplyBulkOverride(capturedSlots, mat));
         }
 
         private void RegisterMaterialClickHandler(VisualElement element, Material material, VisualElement highlightRow = null)
