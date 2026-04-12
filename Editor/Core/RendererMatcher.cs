@@ -252,6 +252,29 @@ namespace Kanameliser.ColorVariantGenerator
         }
 
         /// <summary>
+        /// Returns true if the candidate's base material name matches the given material.
+        /// </summary>
+        private static bool HasMatchingMaterialName(ScannedMaterialSlot candidate, Material baseMaterial)
+        {
+            return baseMaterial != null &&
+                   candidate.baseMaterial != null &&
+                   candidate.baseMaterial.name == baseMaterial.name;
+        }
+
+        /// <summary>
+        /// Narrows candidates to those with a matching base material name if possible.
+        /// Returns the narrowed list if exactly one or more match, otherwise returns candidates unchanged.
+        /// </summary>
+        private static List<ScannedMaterialSlot> NarrowByMaterialName(
+            List<ScannedMaterialSlot> candidates, Material baseMaterial)
+        {
+            if (baseMaterial == null) return candidates;
+
+            var byMaterial = candidates.Where(c => HasMatchingMaterialName(c, baseMaterial)).ToList();
+            return byMaterial.Count > 0 ? byMaterial : candidates;
+        }
+
+        /// <summary>
         /// Selects the best candidate from multiple matches (P1-P4) using material name,
         /// path segment scoring, depth proximity, and Levenshtein distance.
         /// </summary>
@@ -262,15 +285,8 @@ namespace Kanameliser.ColorVariantGenerator
         {
             if (candidates.Count == 1) return candidates[0];
 
-            // Prefer matching base material name
-            if (baseMaterial != null)
-            {
-                var byMaterial = candidates.Where(c =>
-                    c.baseMaterial != null &&
-                    c.baseMaterial.name == baseMaterial.name).ToList();
-                if (byMaterial.Count == 1) return byMaterial[0];
-                if (byMaterial.Count > 1) candidates = byMaterial;
-            }
+            candidates = NarrowByMaterialName(candidates, baseMaterial);
+            if (candidates.Count == 1) return candidates[0];
 
             // Score by hierarchy path similarity, then depth proximity, then Levenshtein distance
             string sourcePath = sourceSlot.rendererPath ?? "";
@@ -303,24 +319,17 @@ namespace Kanameliser.ColorVariantGenerator
             var scored = candidates.Select(c =>
             {
                 string targetNormalized = NormalizeName(c.identifier.objectName);
-                float nameScore;
-                if (string.Equals(sourceNormalized, targetNormalized, StringComparison.OrdinalIgnoreCase))
-                    nameScore = NormalizedNameScore;
-                else
-                    nameScore = FuzzyNameScore;
+                float nameScore = string.Equals(sourceNormalized, targetNormalized, StringComparison.OrdinalIgnoreCase)
+                    ? NormalizedNameScore
+                    : FuzzyNameScore;
 
                 float pathScore = PathSegmentScore(sourcePath, c.identifier.rendererPath ?? "");
-                float totalScore = nameScore + pathScore;
-
-                bool materialMatch = baseMaterial != null &&
-                    c.baseMaterial != null &&
-                    c.baseMaterial.name == baseMaterial.name;
 
                 return new
                 {
                     slot = c,
-                    totalScore,
-                    materialMatch,
+                    totalScore = nameScore + pathScore,
+                    materialMatch = HasMatchingMaterialName(c, baseMaterial),
                     depthDiff = Math.Abs(c.identifier.hierarchyDepth - sourceDepth),
                     levenshtein = LevenshteinDistance(sourcePath, c.identifier.rendererPath ?? "")
                 };
