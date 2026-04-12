@@ -238,7 +238,8 @@ namespace Kanameliser.ColorVariantGenerator
                 if (removed.assetGameObject == null) continue;
 
                 // Build the path of the removed object relative to the prefab root
-                string removedPath = GetAssetRelativePath(removed.assetGameObject.transform);
+                // Pass null as root to walk up to the hierarchy root (prefab asset root)
+                string removedPath = GetRelativePath(null, removed.assetGameObject.transform);
 
                 // Find the corresponding object in the target instance
                 Transform targetTransform = targetInstance.transform.Find(removedPath);
@@ -274,6 +275,17 @@ namespace Kanameliser.ColorVariantGenerator
             // Build a mapping from source objects to corresponding target objects
             var objectMapping = BuildObjectMapping(sourceInstance, targetInstance);
 
+            // Index existing modifications by (target instance ID, propertyPath) for O(1) lookup
+            var baseModIndex = new Dictionary<(int, string), int>(baseMods.Count);
+            for (int i = 0; i < baseMods.Count; i++)
+            {
+                if (baseMods[i].target != null)
+                {
+                    var key = (baseMods[i].target.GetInstanceID(), baseMods[i].propertyPath);
+                    baseModIndex[key] = i;
+                }
+            }
+
             foreach (var mod in modifications)
             {
                 if (mod.target == null) continue;
@@ -297,18 +309,14 @@ namespace Kanameliser.ColorVariantGenerator
                 };
 
                 // Replace existing modification or add new one
-                bool replaced = false;
-                for (int i = 0; i < baseMods.Count; i++)
+                var lookupKey = (remappedTarget.GetInstanceID(), mod.propertyPath);
+                if (baseModIndex.TryGetValue(lookupKey, out int existingIndex))
                 {
-                    if (baseMods[i].target == remappedTarget && baseMods[i].propertyPath == mod.propertyPath)
-                    {
-                        baseMods[i] = remappedMod;
-                        replaced = true;
-                        break;
-                    }
+                    baseMods[existingIndex] = remappedMod;
                 }
-                if (!replaced)
+                else
                 {
+                    baseModIndex[lookupKey] = baseMods.Count;
                     baseMods.Add(remappedMod);
                 }
             }
@@ -464,6 +472,7 @@ namespace Kanameliser.ColorVariantGenerator
         /// <summary>
         /// Gets the relative path from root to target transform.
         /// Returns empty string if target is the root itself.
+        /// When root is null, walks up to the hierarchy root (parent == null).
         /// </summary>
         private static string GetRelativePath(Transform root, Transform target)
         {
@@ -471,32 +480,14 @@ namespace Kanameliser.ColorVariantGenerator
 
             var parts = new List<string>();
             var current = target;
-            while (current != null && current != root)
+            while (current != null && current != root && current.parent != null)
             {
                 parts.Add(current.name);
                 current = current.parent;
             }
 
-            if (current != root) return target.name; // Fallback if not a descendant
-
-            parts.Reverse();
-            return string.Join("/", parts);
-        }
-
-        /// <summary>
-        /// Gets the relative path of an asset GameObject within its prefab hierarchy.
-        /// </summary>
-        private static string GetAssetRelativePath(Transform assetTransform)
-        {
-            var parts = new List<string>();
-            var current = assetTransform;
-
-            // Walk up to root (parent == null for root of prefab asset)
-            while (current != null && current.parent != null)
-            {
-                parts.Add(current.name);
-                current = current.parent;
-            }
+            // If root was specified and we didn't reach it, fall back to the target name
+            if (root != null && current != root) return target.name;
 
             parts.Reverse();
             return string.Join("/", parts);
