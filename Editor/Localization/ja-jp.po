@@ -223,10 +223,16 @@ msgid "creator.standard.includePropertyChanges"
 msgstr "Transform/コンポーネントの変更を含める"
 
 msgid "creator.standard.includePropertyChanges:tooltip"
-msgstr "生成されるVariantに既存オブジェクトのTransformおよびコンポーネントプロパティ変更を含めます（マテリアル変更は常に適用されます）"
+msgstr "有効にするとHierarchyインスタンスをそのままPrefab Variantとして保存され、すべてのoverrideが保存されます。無効の場合、オブジェクトの追加・削除に加えて既存オブジェクト自体のプロパティ変更（リネーム・アクティブ状態・Tagなど）のみが保存されます（マテリアル変更は常に適用されます）"
 
 msgid "creator.warning.noChanges"
 msgstr "構造変更もマテリアルオーバーライドもありません。生成されるVariantはベースPrefabと同一になります。続行しますか？"
+
+msgid "creator.warning.componentChangesIgnored"
+msgstr "Hierarchyインスタンスにコンポーネントの追加/削除がありますが、「Transform/コンポーネントの変更を含める」がOFFのため保存されません。生成されるVariantはベースPrefabと同一になります。続行しますか？オプションをONにする場合はキャンセルしてください。"
+
+msgid "creator.variantParent:lockedTooltip"
+msgstr "「Transform/コンポーネントの変更を含める」がONのため、直接の親に固定されています。このオプションはHierarchyインスタンスを現在の親のVariantとして保存するため、祖先への張り替えはできません。祖先を選びたい場合はオプションをOFFにしてください。"
 
 # ── マテリアルブラウザー ──
 

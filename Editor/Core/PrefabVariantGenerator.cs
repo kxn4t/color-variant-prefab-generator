@@ -93,38 +93,42 @@ namespace Kanameliser.ColorVariantGenerator
                     request.basePrefabAsset.name, request.variantName, request.outputPath, request.namingTemplate);
                 EnsureDirectoryExists(fullPath);
 
-                var instance = PrefabUtility.InstantiatePrefab(request.basePrefabAsset) as GameObject;
-                if (instance == null)
+                var options = request.options ?? new StandardModeOptions();
+                var materialOverrides = request.materialOverrides ?? new List<MaterialOverride>();
+
+                if (options.includePropertyChanges)
                 {
-                    result.errorMessage = "Failed to instantiate base prefab.";
-                    return result;
+                    // Native path saves a duplicate of the hierarchy instance, which preserves
+                    // the instance's existing prefab connection. That makes "retarget the parent
+                    // to an arbitrary ancestor" impossible on this path — the chosen ancestor
+                    // would be silently ignored. Reject the request instead of producing a
+                    // Variant whose parent does not match the user's selection.
+                    var hierarchySource = PrefabUtility.GetCorrespondingObjectFromSource(request.hierarchyInstance);
+                    if (request.basePrefabAsset != null && hierarchySource != null
+                        && request.basePrefabAsset != hierarchySource)
+                    {
+                        result.errorMessage =
+                            "Standard mode with 'Include Transform/component changes' cannot retarget the Variant parent to an ancestor. " +
+                            "Either turn the option OFF, or set the Variant Parent dropdown back to the direct parent.";
+                        return result;
+                    }
+
+                    // Native path: let Unity decide what is an override.
+                    // Save a duplicate of the hierarchy instance, then re-open the saved variant
+                    // through PrefabUtility's contents API to layer material overrides on top
+                    // without disturbing the user's scene state.
+                    GenerateStandardVariantNative(
+                        request.hierarchyInstance, materialOverrides, fullPath, result);
                 }
-
-                try
+                else
                 {
-                    // Step 1: Apply removed GameObjects (destroy before copying to avoid conflicts)
-                    PrefabModificationHelper.ApplyRemovedGameObjects(request.hierarchyInstance, instance);
-
-                    // Step 2: Apply filtered property modifications on existing objects first
-                    // (renames, active state, optional Transform/component changes).
-                    // This must happen BEFORE CopyAddedGameObjects, because SetPropertyModifications
-                    // replaces the entire modification list and would discard added objects.
-                    var options = request.options ?? new StandardModeOptions();
-                    var filteredMods = PrefabModificationHelper.ExtractFilteredModifications(
-                        request.hierarchyInstance, options);
-                    PrefabModificationHelper.ApplyModifications(request.hierarchyInstance, instance, filteredMods);
-
-                    // Step 3: Copy added GameObjects with all their state
-                    PrefabModificationHelper.CopyAddedGameObjects(request.hierarchyInstance, instance);
-
-                    // Step 4: Apply material overrides (same as Strict mode)
-                    int appliedCount = ApplyMaterialOverrides(
-                        instance, request.materialOverrides ?? new List<MaterialOverride>());
-                    SaveAsVariant(instance, fullPath, appliedCount, result);
-                }
-                finally
-                {
-                    Object.DestroyImmediate(instance);
+                    // Filtered path: GameObject add/remove plus GameObject-level property
+                    // overrides on existing objects (m_Name / m_IsActive / m_Layer / m_TagString
+                    // / m_StaticEditorFlags etc.) are transferred. Transform & Component property
+                    // changes and component add/remove are intentionally excluded.
+                    GenerateStandardVariantFiltered(
+                        request.basePrefabAsset, request.hierarchyInstance,
+                        materialOverrides, fullPath, result);
                 }
             }
             catch (Exception ex)
@@ -135,6 +139,124 @@ namespace Kanameliser.ColorVariantGenerator
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Native Standard mode path: duplicates the hierarchy instance while preserving its
+        /// prefab connection, saves the duplicate via Unity's SaveAsPrefabAsset (which produces
+        /// a Variant of the same base Prefab), then layers material overrides on the saved
+        /// Variant via the PrefabUtility contents API.
+        /// The user's hierarchy instance is never passed to SaveAsPrefabAsset, because that
+        /// call rebinds the source GameObject's prefab connection to the newly written asset
+        /// and would silently mutate the user's scene state.
+        /// </summary>
+        private static void GenerateStandardVariantNative(
+            GameObject hierarchyInstance,
+            List<MaterialOverride> materialOverrides,
+            string fullPath,
+            GenerationResult result)
+        {
+            // Object.Instantiate on a prefab instance loses the prefab connection, so
+            // SaveAsPrefabAsset on that clone would produce a plain Prefab instead of a Variant.
+            // Use the same editor-internal path that Ctrl+D in the Hierarchy uses — it preserves
+            // the prefab connection on the duplicate, so the saved result becomes a Variant of
+            // the base. Selection is restored afterwards to avoid disturbing the user's state.
+            var previousSelection = Selection.objects;
+            Selection.activeGameObject = hierarchyInstance;
+            Unsupported.DuplicateGameObjectsUsingPasteboard(); // TODO: より良い実装方法があれば変えたい
+            var duplicate = Selection.activeGameObject;
+            Selection.objects = previousSelection;
+
+            if (duplicate == null || duplicate == hierarchyInstance)
+            {
+                result.errorMessage =
+                    "Failed to duplicate the Hierarchy instance while preserving its prefab connection.";
+                return;
+            }
+
+            try
+            {
+                PrefabUtility.SaveAsPrefabAsset(duplicate, fullPath, out bool firstSaveSuccess);
+                if (!firstSaveSuccess)
+                {
+                    result.errorMessage = $"PrefabUtility.SaveAsPrefabAsset failed for '{fullPath}'.";
+                    return;
+                }
+
+                var contents = PrefabUtility.LoadPrefabContents(fullPath);
+                try
+                {
+                    int appliedCount = ApplyMaterialOverrides(contents, materialOverrides);
+                    PrefabUtility.SaveAsPrefabAsset(contents, fullPath, out bool secondSaveSuccess);
+                    result.success = secondSaveSuccess;
+                    result.path = fullPath;
+                    if (secondSaveSuccess)
+                    {
+                        Debug.Log(
+                            $"[Color Variant Generator] Generated Prefab Variant: '{fullPath}' " +
+                            $"({appliedCount} material overrides applied; native mode)");
+                    }
+                    else
+                    {
+                        result.errorMessage =
+                            $"PrefabUtility.SaveAsPrefabAsset failed when applying material overrides for '{fullPath}'.";
+                    }
+                }
+                finally
+                {
+                    PrefabUtility.UnloadPrefabContents(contents);
+                }
+            }
+            finally
+            {
+                Object.DestroyImmediate(duplicate);
+            }
+        }
+
+        /// <summary>
+        /// Filtered Standard mode path: instantiates the base prefab fresh and selectively
+        /// transfers GameObject add/remove plus GameObject-level property overrides on existing
+        /// objects (m_Name, m_IsActive, m_Layer, m_TagString, m_StaticEditorFlags, etc.).
+        /// Transform / Component property changes and component add/remove are excluded by design;
+        /// material slot modifications are excluded here and re-applied via the material override system.
+        /// </summary>
+        private static void GenerateStandardVariantFiltered(
+            GameObject basePrefabAsset,
+            GameObject hierarchyInstance,
+            List<MaterialOverride> materialOverrides,
+            string fullPath,
+            GenerationResult result)
+        {
+            var instance = PrefabUtility.InstantiatePrefab(basePrefabAsset) as GameObject;
+            if (instance == null)
+            {
+                result.errorMessage = "Failed to instantiate base prefab.";
+                return;
+            }
+
+            try
+            {
+                // Step 1: Apply removed GameObjects (destroy before copying to avoid conflicts)
+                PrefabModificationHelper.ApplyRemovedGameObjects(hierarchyInstance, instance);
+
+                // Step 2: Apply filtered property modifications. With includePropertyChanges = false
+                // the helper passes through GameObject-level overrides (m_Name, m_IsActive, m_Layer,
+                // m_TagString, m_StaticEditorFlags, etc.) and skips Transform/Component property changes.
+                var filteredMods = PrefabModificationHelper.ExtractFilteredModifications(
+                    hierarchyInstance, new StandardModeOptions { includePropertyChanges = false });
+                PrefabModificationHelper.ApplyModifications(hierarchyInstance, instance, filteredMods);
+
+                // Step 3: Copy added GameObjects with all their state
+                PrefabModificationHelper.CopyAddedGameObjects(hierarchyInstance, instance);
+
+                // Step 4: Apply material overrides (same as Strict mode)
+                int appliedCount = ApplyMaterialOverrides(instance, materialOverrides);
+                SaveAsVariant(instance, fullPath, appliedCount, result);
+            }
+            finally
+            {
+                Object.DestroyImmediate(instance);
+            }
         }
 
         /// <summary>

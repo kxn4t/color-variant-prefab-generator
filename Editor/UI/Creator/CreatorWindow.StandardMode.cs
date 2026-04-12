@@ -62,6 +62,7 @@ namespace Kanameliser.ColorVariantGenerator
             _includePropertyChangesToggle.RegisterValueChangedCallback(evt =>
             {
                 EditorPrefs.SetBool(IncludePropertyChangesKey, evt.newValue);
+                ApplyVariantParentLockState();
             });
             _standardOptionsContainer.Add(_includePropertyChangesToggle);
 
@@ -102,6 +103,7 @@ namespace Kanameliser.ColorVariantGenerator
             if (mode == CreatorMode.Standard)
                 RefreshStructuralChanges();
 
+            ApplyVariantParentLockState();
             RefreshMaterialSlotsUI();
         }
     }

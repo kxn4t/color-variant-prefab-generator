@@ -79,6 +79,31 @@ namespace Kanameliser.ColorVariantGenerator
                 // They are optionally included during generation via StandardModeOptions.
             }
 
+            // Detect added components on existing GameObjects
+            var addedComponents = PrefabUtility.GetAddedComponents(hierarchyInstance);
+            foreach (var addedComp in addedComponents)
+            {
+                var comp = addedComp.instanceComponent;
+                if (comp == null) continue;
+                string path = GetRelativePath(hierarchyInstance.transform, comp.transform);
+                summary.addedComponents.Add($"{path}::{comp.GetType().Name}");
+            }
+
+            // Detect removed components on existing GameObjects
+            var removedComponents = PrefabUtility.GetRemovedComponents(hierarchyInstance);
+            foreach (var removedComp in removedComponents)
+            {
+                var assetComp = removedComp.assetComponent;
+                if (assetComp == null) continue;
+                Transform parentInInstance = removedComp.containingInstanceGameObject != null
+                    ? removedComp.containingInstanceGameObject.transform
+                    : null;
+                string path = parentInInstance != null
+                    ? GetRelativePath(hierarchyInstance.transform, parentInInstance)
+                    : "(unknown)";
+                summary.removedComponents.Add($"{path}::{assetComp.GetType().Name}");
+            }
+
             return summary;
         }
 
@@ -145,25 +170,60 @@ namespace Kanameliser.ColorVariantGenerator
             if (!overriddenInstanceIds.Contains(mod.target.GetInstanceID()))
                 return false;
 
-            // Always include: name changes (structural rename)
+            // Structural rename: include only when the current value actually differs from base.
+            // Unity keeps PropertyModification entries even after the user toggles a value back to
+            // the base value ("no-op override"), which would otherwise produce meaningless
+            // override rows on the generated Variant.
             if (mod.target is GameObject && mod.propertyPath == "m_Name")
-                return true;
+                return ValueDiffersFromBase(mod);
 
-            // Always include: active state changes (structural enable/disable)
+            // Active state toggle: same no-op filtering as rename.
             if (mod.target is GameObject && mod.propertyPath == "m_IsActive")
-                return true;
+                return ValueDiffersFromBase(mod);
+
+            // Tag change: frequently used in practice (e.g. marking MA bone proxies, etc.),
+            // so it's called out alongside rename / active state rather than buried in the
+            // generic GameObject-level catch-all below.
+            if (mod.target is GameObject && mod.propertyPath == "m_TagString")
+                return ValueDiffersFromBase(mod);
 
             // Skip root Transform — placing a prefab in the scene always creates
             // position/rotation overrides on the root, which are not meaningful.
             if (mod.target is Transform t && t == hierarchyInstance.transform)
                 return false;
 
-            // Conditionally include: Transform and component property changes
+            // Conditionally include: Transform and component property changes.
+            // No base-value filtering here — when the user opts into
+            // includePropertyChanges, honor Unity's override list as-is.
             if (mod.target is Transform || mod.target is Component)
                 return options.includePropertyChanges;
 
-            // Include anything else that doesn't fall into the above categories
-            return true;
+            // Other GameObject-level overrides (m_Layer, m_TagString, m_StaticEditorFlags, etc.):
+            // include only when the current value actually differs from base.
+            return ValueDiffersFromBase(mod);
+        }
+
+        /// <summary>
+        /// Returns true if the modification's current value on the instance differs from the
+        /// corresponding value on the base Prefab asset. Used to drop "no-op" overrides that
+        /// Unity keeps in its PropertyModification list even after the user reverts the value
+        /// by toggling it back to the base.
+        /// Returns true (include) as a safe default when the base value cannot be resolved.
+        /// </summary>
+        private static bool ValueDiffersFromBase(PropertyModification mod)
+        {
+            if (mod.target == null) return true;
+
+            var baseTarget = PrefabUtility.GetCorrespondingObjectFromSource(mod.target);
+            if (baseTarget == null) return true;
+
+            using var instanceSO = new SerializedObject(mod.target);
+            using var baseSO = new SerializedObject(baseTarget);
+            var instanceProp = instanceSO.FindProperty(mod.propertyPath);
+            var baseProp = baseSO.FindProperty(mod.propertyPath);
+            if (instanceProp == null || baseProp == null) return true;
+
+            return !SerializedProperty.DataEquals(instanceProp, baseProp);
         }
 
         /// <summary>

@@ -284,13 +284,26 @@ namespace Kanameliser.ColorVariantGenerator
         {
             if (overridesList.Count > 0) return true;
 
-            // In Standard mode, structural changes alone are a valid reason to generate
+            // In Standard mode, GameObject-level structural changes alone are a valid reason to generate
             if (_creatorMode == CreatorMode.Standard && _structuralSummary != null && _structuralSummary.HasStructuralChanges)
                 return true;
 
-            // In Standard mode with no changes at all, show a different warning
             if (_creatorMode == CreatorMode.Standard)
             {
+                // Component add/remove only: the filtered path (includePropertyChanges = false)
+                // does not transfer these, so the resulting Variant would silently match the base.
+                // Warn explicitly so the user can switch the toggle ON or cancel.
+                bool includePropertyChanges = EditorPrefs.GetBool(IncludePropertyChangesKey, false);
+                if (!includePropertyChanges
+                    && _structuralSummary != null && _structuralSummary.HasComponentChanges)
+                {
+                    return EditorUtility.DisplayDialog(
+                        Localization.S("common.warning"),
+                        Localization.S("creator.warning.componentChangesIgnored"),
+                        Localization.S("creator.generateAnyway"),
+                        Localization.S("common.cancel"));
+                }
+
                 return EditorUtility.DisplayDialog(
                     Localization.S("common.warning"),
                     Localization.S("creator.warning.noChanges"),
@@ -448,6 +461,38 @@ namespace Kanameliser.ColorVariantGenerator
             _parentDropdown.tooltip = Localization.S("creator.variantParent:tooltip");
             _parentDropdown.RegisterValueChangedCallback(OnVariantParentChanged);
             _parentDropdownContainer.Add(_parentDropdown);
+
+            ApplyVariantParentLockState();
+        }
+
+        /// <summary>
+        /// Locks the Variant Parent dropdown to the direct parent when Standard mode's
+        /// "Include Transform/component changes" option is ON, because the native save
+        /// path cannot retarget the Variant parent to an arbitrary ancestor.
+        /// </summary>
+        internal void ApplyVariantParentLockState()
+        {
+            if (_parentDropdown == null) return;
+
+            bool lockToDirectParent = _creatorMode == CreatorMode.Standard
+                && EditorPrefs.GetBool(IncludePropertyChangesKey, false);
+
+            if (lockToDirectParent)
+            {
+                if (_basePrefabAsset != null)
+                {
+                    _parentDropdown.SetValueWithoutNotify(_basePrefabAsset);
+                    _selectedVariantParent = _basePrefabAsset;
+                    UpdateOutputPreview();
+                }
+                _parentDropdown.SetEnabled(false);
+                _parentDropdown.tooltip = Localization.S("creator.variantParent:lockedTooltip");
+            }
+            else
+            {
+                _parentDropdown.SetEnabled(true);
+                _parentDropdown.tooltip = Localization.S("creator.variantParent:tooltip");
+            }
         }
 
         private static string FormatParentSelected(GameObject go)

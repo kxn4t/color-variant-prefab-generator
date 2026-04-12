@@ -223,10 +223,16 @@ msgid "creator.standard.includePropertyChanges"
 msgstr "Include Transform/component changes"
 
 msgid "creator.standard.includePropertyChanges:tooltip"
-msgstr "Include Transform and component property changes on existing objects in the generated Variant (excludes material changes which are always applied)"
+msgstr "When enabled, save the Hierarchy instance directly as a Prefab Variant so all overrides are saved. When disabled, only GameObject add/remove plus property changes on existing GameObjects themselves (rename, active state, tag, etc.) are saved (material changes are always applied)."
 
 msgid "creator.warning.noChanges"
 msgstr "No structural changes or material overrides detected. The generated Variant will be identical to the base Prefab. Continue?"
+
+msgid "creator.warning.componentChangesIgnored"
+msgstr "The Hierarchy instance has component additions/removals, but those are not transferred when 'Include Transform/component changes' is OFF. The generated Variant will be identical to the base Prefab. Continue, or cancel and turn the option ON?"
+
+msgid "creator.variantParent:lockedTooltip"
+msgstr "Locked to the direct parent because 'Include Transform/component changes' is ON. That option saves the Hierarchy instance as a Variant of its current parent and cannot retarget to an ancestor. Turn the option OFF to choose an ancestor."
 
 # ── Material Browser ──
 

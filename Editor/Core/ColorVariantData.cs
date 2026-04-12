@@ -140,7 +140,20 @@ namespace Kanameliser.ColorVariantGenerator
     /// </summary>
     internal class StandardModeOptions
     {
-        /// <summary>Whether to include Transform and component property modifications on existing objects.</summary>
+        /// <summary>
+        /// When true, the hierarchy instance is saved (via a duplicate) as a Prefab Variant so
+        /// every override Unity recognizes is captured: Transform property changes, component
+        /// property changes, component add/remove, etc.
+        /// When false, the filtered path runs and transfers:
+        ///   - GameObject add/remove
+        ///   - GameObject-level property overrides on existing objects (m_Name, m_IsActive,
+        ///     m_Layer, m_TagString, m_StaticEditorFlags, and any other non-Transform/Component
+        ///     properties on the GameObject itself)
+        /// while excluding Transform property changes, Component property changes, and
+        /// component add/remove.
+        /// Material slot modifications are always excluded here and applied by the dedicated
+        /// material override system on top of either path.
+        /// </summary>
         public bool includePropertyChanges;
     }
 
@@ -173,8 +186,27 @@ namespace Kanameliser.ColorVariantGenerator
         /// <summary>Paths of GameObjects whose names were changed.</summary>
         public List<string> renamedGameObjects = new List<string>();
 
-        /// <summary>Whether any structural changes (added, removed, or renamed GameObjects) exist.</summary>
+        /// <summary>"path::ComponentType" entries for components added to existing GameObjects.</summary>
+        public List<string> addedComponents = new List<string>();
+
+        /// <summary>"path::ComponentType" entries for components removed from existing GameObjects.</summary>
+        public List<string> removedComponents = new List<string>();
+
+        /// <summary>
+        /// Whether any GameObject-level structural changes (added/removed/renamed GameObjects) exist.
+        /// These are transferred by both Standard mode paths.
+        /// Component-level changes are tracked separately via <see cref="HasComponentChanges"/>
+        /// because the filtered path (includePropertyChanges = false) does NOT transfer them,
+        /// and conflating the two would let a "components only" diff bypass the empty-changes warning.
+        /// </summary>
         public bool HasStructuralChanges =>
             addedGameObjects.Count > 0 || removedGameObjects.Count > 0 || renamedGameObjects.Count > 0;
+
+        /// <summary>
+        /// Whether any component-level changes (added or removed components on existing GameObjects) exist.
+        /// Only the native path (includePropertyChanges = true) transfers these.
+        /// </summary>
+        public bool HasComponentChanges =>
+            addedComponents.Count > 0 || removedComponents.Count > 0;
     }
 }
