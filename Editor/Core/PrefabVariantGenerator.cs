@@ -28,39 +28,16 @@ namespace Kanameliser.ColorVariantGenerator
 
             try
             {
-                // Validate inputs
-                if (basePrefabAsset == null)
+                string validationError = ValidateInputs(basePrefabAsset, variantName, outputPath);
+                if (validationError != null)
                 {
-                    result.errorMessage = "Base prefab is null.";
+                    result.errorMessage = validationError;
                     return result;
                 }
 
-                if (string.IsNullOrEmpty(variantName))
-                {
-                    result.errorMessage = "Variant name is empty.";
-                    return result;
-                }
+                string fullPath = ComputeOutputPath(basePrefabAsset.name, variantName, outputPath, namingTemplate);
+                EnsureDirectoryExists(fullPath);
 
-                if (!EditorUIUtility.IsValidOutputPath(outputPath))
-                {
-                    result.errorMessage = $"Output path must be inside the project's Assets folder: '{outputPath}'";
-                    return result;
-                }
-
-                // Compute output file path
-                string baseName = basePrefabAsset.name;
-                string variantFileName = EditorUIUtility.ResolveFileName(namingTemplate, baseName, variantName);
-                string fullPath = EditorUIUtility.NormalizePath(
-                    Path.Combine(outputPath, variantFileName + ".prefab"));
-
-                // Ensure output directory exists
-                string directory = Path.GetDirectoryName(fullPath);
-                if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
-                {
-                    Directory.CreateDirectory(directory);
-                }
-
-                // Create a fresh instance from the base prefab (maintains the prefab link)
                 var instance = PrefabUtility.InstantiatePrefab(basePrefabAsset) as GameObject;
                 if (instance == null)
                 {
@@ -70,70 +47,11 @@ namespace Kanameliser.ColorVariantGenerator
 
                 try
                 {
-                    // Apply material overrides only
-                    int appliedCount = 0;
-                    foreach (var materialOverride in overrides)
-                    {
-                        if (materialOverride?.overrideMaterial == null) continue;
-                        if (materialOverride.slot == null) continue;
-
-                        Transform target;
-                        if (string.IsNullOrEmpty(materialOverride.slot.rendererPath))
-                        {
-                            target = instance.transform;
-                        }
-                        else
-                        {
-                            target = instance.transform.Find(materialOverride.slot.rendererPath);
-                        }
-
-                        if (target == null)
-                        {
-                            Debug.LogWarning($"[Color Variant Generator] Renderer path not found: '{materialOverride.slot.rendererPath}'");
-                            continue;
-                        }
-
-                        var renderer = target.GetComponent<Renderer>();
-                        if (renderer == null)
-                        {
-                            Debug.LogWarning($"[Color Variant Generator] No Renderer component on: '{materialOverride.slot.rendererPath}'");
-                            continue;
-                        }
-
-                        var materials = renderer.sharedMaterials;
-                        if (materialOverride.slot.slotIndex >= 0 && materialOverride.slot.slotIndex < materials.Length)
-                        {
-                            materials[materialOverride.slot.slotIndex] = materialOverride.overrideMaterial;
-                            renderer.sharedMaterials = materials;
-                            appliedCount++;
-                        }
-                        else
-                        {
-                            Debug.LogWarning($"[Color Variant Generator] Slot index {materialOverride.slot.slotIndex} out of range for '{materialOverride.slot.rendererPath}' (has {materials.Length} slots)");
-                        }
-                    }
-
-                    // Save as Prefab Variant
-                    // When an instance created via InstantiatePrefab is saved with SaveAsPrefabAsset,
-                    // Unity automatically creates a Prefab Variant linked to the base prefab.
-                    bool success;
-                    PrefabUtility.SaveAsPrefabAsset(instance, fullPath, out success);
-
-                    result.success = success;
-                    result.path = fullPath;
-
-                    if (success)
-                    {
-                        Debug.Log($"[Color Variant Generator] Generated Prefab Variant: '{fullPath}' ({appliedCount} material overrides applied)");
-                    }
-                    else
-                    {
-                        result.errorMessage = $"PrefabUtility.SaveAsPrefabAsset failed for '{fullPath}'.";
-                    }
+                    int appliedCount = ApplyMaterialOverrides(instance, overrides);
+                    SaveAsVariant(instance, fullPath, appliedCount, result);
                 }
                 finally
                 {
-                    // Clean up the temporary instance
                     Object.DestroyImmediate(instance);
                 }
             }
@@ -158,10 +76,10 @@ namespace Kanameliser.ColorVariantGenerator
 
             try
             {
-                // Validate inputs
-                if (request.basePrefabAsset == null)
+                string validationError = ValidateInputs(request.basePrefabAsset, request.variantName, request.outputPath);
+                if (validationError != null)
                 {
-                    result.errorMessage = "Base prefab is null.";
+                    result.errorMessage = validationError;
                     return result;
                 }
 
@@ -171,33 +89,10 @@ namespace Kanameliser.ColorVariantGenerator
                     return result;
                 }
 
-                if (string.IsNullOrEmpty(request.variantName))
-                {
-                    result.errorMessage = "Variant name is empty.";
-                    return result;
-                }
+                string fullPath = ComputeOutputPath(
+                    request.basePrefabAsset.name, request.variantName, request.outputPath, request.namingTemplate);
+                EnsureDirectoryExists(fullPath);
 
-                if (!EditorUIUtility.IsValidOutputPath(request.outputPath))
-                {
-                    result.errorMessage = $"Output path must be inside the project's Assets folder: '{request.outputPath}'";
-                    return result;
-                }
-
-                // Compute output file path
-                string baseName = request.basePrefabAsset.name;
-                string variantFileName = EditorUIUtility.ResolveFileName(
-                    request.namingTemplate, baseName, request.variantName);
-                string fullPath = EditorUIUtility.NormalizePath(
-                    Path.Combine(request.outputPath, variantFileName + ".prefab"));
-
-                // Ensure output directory exists
-                string directory = Path.GetDirectoryName(fullPath);
-                if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
-                {
-                    Directory.CreateDirectory(directory);
-                }
-
-                // Create a fresh instance from the base prefab (maintains the prefab link)
                 var instance = PrefabUtility.InstantiatePrefab(request.basePrefabAsset) as GameObject;
                 if (instance == null)
                 {
@@ -223,71 +118,9 @@ namespace Kanameliser.ColorVariantGenerator
                     PrefabModificationHelper.CopyAddedGameObjects(request.hierarchyInstance, instance);
 
                     // Step 4: Apply material overrides (same as Strict mode)
-                    int appliedCount = 0;
-                    if (request.materialOverrides != null)
-                    {
-                        foreach (var materialOverride in request.materialOverrides)
-                        {
-                            if (materialOverride?.overrideMaterial == null) continue;
-                            if (materialOverride.slot == null) continue;
-
-                            Transform target;
-                            if (string.IsNullOrEmpty(materialOverride.slot.rendererPath))
-                            {
-                                target = instance.transform;
-                            }
-                            else
-                            {
-                                target = instance.transform.Find(materialOverride.slot.rendererPath);
-                            }
-
-                            if (target == null)
-                            {
-                                Debug.LogWarning(
-                                    $"[Color Variant Generator] Renderer path not found: '{materialOverride.slot.rendererPath}'");
-                                continue;
-                            }
-
-                            var renderer = target.GetComponent<Renderer>();
-                            if (renderer == null)
-                            {
-                                Debug.LogWarning(
-                                    $"[Color Variant Generator] No Renderer component on: '{materialOverride.slot.rendererPath}'");
-                                continue;
-                            }
-
-                            var materials = renderer.sharedMaterials;
-                            if (materialOverride.slot.slotIndex >= 0 &&
-                                materialOverride.slot.slotIndex < materials.Length)
-                            {
-                                materials[materialOverride.slot.slotIndex] = materialOverride.overrideMaterial;
-                                renderer.sharedMaterials = materials;
-                                appliedCount++;
-                            }
-                            else
-                            {
-                                Debug.LogWarning(
-                                    $"[Color Variant Generator] Slot index {materialOverride.slot.slotIndex} out of range for '{materialOverride.slot.rendererPath}' (has {materials.Length} slots)");
-                            }
-                        }
-                    }
-
-                    // Save as Prefab Variant
-                    bool success;
-                    PrefabUtility.SaveAsPrefabAsset(instance, fullPath, out success);
-
-                    result.success = success;
-                    result.path = fullPath;
-
-                    if (success)
-                    {
-                        Debug.Log(
-                            $"[Color Variant Generator] Generated Prefab Variant (Standard): '{fullPath}' ({appliedCount} material overrides applied)");
-                    }
-                    else
-                    {
-                        result.errorMessage = $"PrefabUtility.SaveAsPrefabAsset failed for '{fullPath}'.";
-                    }
+                    int appliedCount = ApplyMaterialOverrides(
+                        instance, request.materialOverrides ?? new List<MaterialOverride>());
+                    SaveAsVariant(instance, fullPath, appliedCount, result);
                 }
                 finally
                 {
@@ -353,6 +186,111 @@ namespace Kanameliser.ColorVariantGenerator
             Debug.Log($"[Color Variant Generator] Batch generation complete: {successCount} succeeded, {failCount} failed");
 
             return results;
+        }
+
+        /// <summary>
+        /// Validates common generation inputs. Returns an error message if invalid, null if valid.
+        /// </summary>
+        private static string ValidateInputs(GameObject basePrefabAsset, string variantName, string outputPath)
+        {
+            if (basePrefabAsset == null)
+                return "Base prefab is null.";
+            if (string.IsNullOrEmpty(variantName))
+                return "Variant name is empty.";
+            if (!EditorUIUtility.IsValidOutputPath(outputPath))
+                return $"Output path must be inside the project's Assets folder: '{outputPath}'";
+            return null;
+        }
+
+        /// <summary>
+        /// Computes the full output file path for a variant.
+        /// </summary>
+        private static string ComputeOutputPath(string baseName, string variantName, string outputPath, string namingTemplate)
+        {
+            string variantFileName = EditorUIUtility.ResolveFileName(namingTemplate, baseName, variantName);
+            return EditorUIUtility.NormalizePath(Path.Combine(outputPath, variantFileName + ".prefab"));
+        }
+
+        private static void EnsureDirectoryExists(string fullPath)
+        {
+            string directory = Path.GetDirectoryName(fullPath);
+            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+        }
+
+        /// <summary>
+        /// Applies material overrides to a GameObject instance.
+        /// Returns the number of successfully applied overrides.
+        /// </summary>
+        private static int ApplyMaterialOverrides(GameObject instance, List<MaterialOverride> overrides)
+        {
+            // Null is a caller bug — empty list is the valid "no overrides" case
+            // (guarded by UI-layer confirmation dialogs / allowEmptyOverrides toggle).
+            if (overrides == null)
+                throw new ArgumentNullException(nameof(overrides));
+
+            int appliedCount = 0;
+            foreach (var materialOverride in overrides)
+            {
+                if (materialOverride?.overrideMaterial == null) continue;
+                if (materialOverride.slot == null) continue;
+
+                Transform target = string.IsNullOrEmpty(materialOverride.slot.rendererPath)
+                    ? instance.transform
+                    : instance.transform.Find(materialOverride.slot.rendererPath);
+
+                if (target == null)
+                {
+                    Debug.LogWarning($"[Color Variant Generator] Renderer path not found: '{materialOverride.slot.rendererPath}'");
+                    continue;
+                }
+
+                var renderer = target.GetComponent<Renderer>();
+                if (renderer == null)
+                {
+                    Debug.LogWarning($"[Color Variant Generator] No Renderer component on: '{materialOverride.slot.rendererPath}'");
+                    continue;
+                }
+
+                var materials = renderer.sharedMaterials;
+                if (materialOverride.slot.slotIndex >= 0 && materialOverride.slot.slotIndex < materials.Length)
+                {
+                    materials[materialOverride.slot.slotIndex] = materialOverride.overrideMaterial;
+                    renderer.sharedMaterials = materials;
+                    appliedCount++;
+                }
+                else
+                {
+                    Debug.LogWarning(
+                        $"[Color Variant Generator] Slot index {materialOverride.slot.slotIndex} out of range for '{materialOverride.slot.rendererPath}' (has {materials.Length} slots)");
+                }
+            }
+
+            return appliedCount;
+        }
+
+        /// <summary>
+        /// Saves a GameObject instance as a Prefab Variant and populates the result.
+        /// </summary>
+        private static void SaveAsVariant(
+            GameObject instance, string fullPath, int appliedCount, GenerationResult result)
+        {
+            bool success;
+            PrefabUtility.SaveAsPrefabAsset(instance, fullPath, out success);
+
+            result.success = success;
+            result.path = fullPath;
+
+            if (success)
+            {
+                Debug.Log($"[Color Variant Generator] Generated Prefab Variant: '{fullPath}' ({appliedCount} material overrides applied)");
+            }
+            else
+            {
+                result.errorMessage = $"PrefabUtility.SaveAsPrefabAsset failed for '{fullPath}'.";
+            }
         }
     }
 }
