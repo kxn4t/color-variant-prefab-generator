@@ -1,44 +1,9 @@
 /* Color Variant Creator Window Styles */
-
-/* Language switcher */
-.language-switcher {
-    margin-bottom: 8px;
-}
-
-/* Main container */
-.main-container {
-    padding: 10px;
-    flex-grow: 1;
-}
-
-/* Section styles */
-.section-container {
-    margin-bottom: 10px;
-    padding: 10px;
-    background-color: rgba(255, 255, 255, 0.05);
-    border-radius: 4px;
-}
-
-.section-label {
-    -unity-font-style: bold;
-    margin-bottom: 5px;
-    font-size: 13px;
-}
+/* Common styles (.language-switcher, .main-container, .section-container, etc.) are in Common.uss */
 
 /* Base prefab section */
 .base-prefab-section {
     margin-bottom: 10px;
-}
-
-.base-prefab-row {
-    flex-direction: row;
-    align-items: center;
-}
-
-.base-prefab-field {
-    flex-grow: 1;
-    flex-shrink: 1;
-    min-width: 0;
 }
 
 .base-prefab-warning {
@@ -197,9 +162,6 @@
     flex-shrink: 0;
 }
 
-.bulk-header-override-field {
-}
-
 .bulk-group-no-overrides {
     opacity: 0.5;
 }
@@ -308,38 +270,11 @@
     opacity: 0.5;
 }
 
-/* Output section */
-.output-section {
-    margin-bottom: 10px;
-}
-
-.output-row {
-    flex-direction: row;
-    align-items: center;
-    margin-bottom: 4px;
-}
-
-.output-label {
-    width: 110px;
-    -unity-text-align: middle-left;
-}
-
-.output-field {
-    flex-grow: 1;
-    flex-shrink: 1;
-    min-width: 0;
-}
-
+/* Browse button (output path) */
 .browse-button {
     width: 60px;
     margin-left: 4px;
     flex-shrink: 0;
-}
-
-.output-preview-label {
-    margin-top: 4px;
-    color: rgba(255, 255, 255, 0.6);
-    font-size: 11px;
 }
 
 /* Options button (next to base prefab) */
@@ -398,19 +333,7 @@
     flex-shrink: 0;
 }
 
-/* Action buttons */
-.action-section {
-    flex-direction: row;
-    justify-content: flex-end;
-    margin-top: 5px;
-}
-
-.generate-button {
-    height: 30px;
-    min-width: 200px;
-    -unity-font-style: bold;
-}
-
+/* Clear overrides split button */
 .clear-overrides-group {
     flex-direction: row;
     margin-right: 8px;
@@ -479,12 +402,6 @@
     flex-grow: 1;
     flex-shrink: 1;
     min-width: 0;
-}
-
-.browser-browse-button {
-    width: 28px;
-    flex-shrink: 0;
-    margin-left: 2px;
 }
 
 .browser-scroll {
@@ -671,15 +588,4 @@
 
 .standard-option-toggle {
     margin-bottom: 2px;
-}
-
-/* Info / help box */
-.info-box {
-    padding: 8px;
-    margin-bottom: 10px;
-    background-color: rgba(100, 150, 255, 0.1);
-    border-radius: 3px;
-    border-width: 1px;
-    border-color: rgba(100, 150, 255, 0.3);
-    white-space: normal;
 }

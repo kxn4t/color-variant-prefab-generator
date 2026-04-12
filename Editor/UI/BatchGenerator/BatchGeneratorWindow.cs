@@ -63,6 +63,13 @@ namespace Kanameliser.ColorVariantGenerator
         {
             var root = rootVisualElement;
 
+            var commonStyleSheet = AssetDatabase.LoadAssetAtPath<StyleSheet>(
+                "Packages/net.kanameliser.color-variant-generator/Editor/UI/Common.uss");
+            if (commonStyleSheet != null)
+            {
+                root.styleSheets.Add(commonStyleSheet);
+            }
+
             var styleSheet = AssetDatabase.LoadAssetAtPath<StyleSheet>(
                 "Packages/net.kanameliser.color-variant-generator/Editor/UI/BatchGenerator/BatchGeneratorWindow.uss");
             if (styleSheet != null)
