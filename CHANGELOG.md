@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **CV Creator: Standard Mode** — New default mode that preserves structural changes made to the Hierarchy instance (added/removed GameObjects, renames, active state toggles) and writes them into the generated Prefab Variant alongside material overrides. An optional toggle also includes Transform and component property changes on existing objects. The previous material-only behavior remains available as **Strict Mode** via the Options menu on the Base Prefab field
+  - **Added objects in slot UI** — GameObjects added on the Hierarchy instance show up as a dedicated section in both normal and bulk slot views, letting you assign override materials to Renderers that don't exist on the base Prefab
+
 ### Improved
 
 - **Renderer Matching Algorithm** — Exact name matches work the same as before. When no exact match is found, the algorithm now tries score-based similar-name matching as a last resort, so color variants and numbered duplicates can be matched where possible
@@ -20,6 +25,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Same-name disambiguation** — When multiple objects share the same name (e.g., `Mesh` under `Jacket/`, `Skirt/`, `Boots/`), parent hierarchy similarity is used to match them correctly
 
 ---
+
+### 追加
+
+- **CV Creator: Standard モード** — Hierarchyインスタンス上で行った構造変更（GameObjectの追加・削除、リネーム、アクティブ状態の切り替え）をPrefab Variantに反映する新しいデフォルトモード。既存オブジェクトのTransformやコンポーネントのプロパティ変更も、オプションで一緒に含めることができます。従来のマテリアル差し替えのみの挙動は、Base Prefabフィールド横のOptionsメニューから **Strict モード** として引き続き利用可能
+  - **追加オブジェクトのスロットUI** — Hierarchyインスタンス上で追加したGameObjectが、通常モード・一括モードの両方で専用セクションとして表示され、ベースPrefabに存在しないRendererにもオーバーライドマテリアルを割り当て可能
 
 ### 改善
 

@@ -63,11 +63,31 @@ Color Variant Prefab Generatorのプロダクト仕様書。UIの構成と期待
 
 ## CV Creator — 詳細仕様
 
+### 生成モード（Standard / Strict）
+
+CV Creatorは2つの生成モードを持ち、Base Prefabフィールド横のOptionsメニュー (▼) の「Strict Mode (Material Only)」チェックボックスで切り替える。選択は`EditorPrefs`に保存される。デフォルトは **Standard** モード。
+
+| モード | 保存される内容 |
+|---|---|
+| **Standard**（デフォルト） | マテリアルオーバーライド＋Hierarchyインスタンス上で行った構造変更（GameObjectの追加・削除、リネーム、アクティブ状態の切り替え）。オプションで既存オブジェクトのTransform・コンポーネントのプロパティ変更も含められる |
+| **Strict** | マテリアルオーバーライドのみ。Hierarchyインスタンス上の構造変更は一切反映されない |
+
+**Standardモード固有のUI**:
+
+- 追加したGameObject配下のRendererは、スロットUIの末尾に追加オブジェクト用の専用セクションとして表示され、ベースPrefabには存在しないスロットにもオーバーライドを割り当てられる
+- Outputセクション内に「Include Transform/component changes」チェックボックスが表示され、既存オブジェクトのプロパティ変更を取り込むかを切り替える（デフォルトOFF）
+- 構造変更のみで生成可能（マテリアルオーバーライド0件でも、構造変更があれば警告ダイアログなしで生成される）
+
+**Strictモード固有のUI**:
+
+- Base Prefabフィールドの右側に「Strict Mode」バッジを表示し、構造変更が無視されることを示す
+- Hierarchyインスタンス上で追加したGameObjectはスロットUIからフィルターされ、表示されない
+
 ### ベースPrefab指定
 
 **Hierarchyのインスタンス**（Projectアセットではなく）を指定する。Sceneプレビューのためにシーン上のインスタンスが必要。Projectアセットを指定した場合は警告を表示。
 
-**Optionsメニュー (▼)**: ObjectFieldの右に配置。「Import from Prefab」機能へのアクセスを提供。
+**Optionsメニュー (▼)**: ObjectFieldの右に配置。「Import from Prefab」機能と「Strict Mode (Material Only)」トグルへのアクセスを提供。
 
 ### マテリアルブラウザー
 
