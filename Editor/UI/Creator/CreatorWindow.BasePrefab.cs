@@ -212,6 +212,15 @@ namespace Kanameliser.ColorVariantGenerator
                 ? new Dictionary<MaterialSlotIdentifier, Material>(_overrides)
                 : null;
 
+            // Snapshot which slots were already marked pre-existing on the previous scan,
+            // so rescans can tell a tool-made override apart from a genuine pre-existing
+            // override. matProp.prefabOverride alone can't distinguish them — writing a
+            // material through this tool also sets prefabOverride — and reclassifying
+            // tool-made overrides as pre-existing would defeat SelectiveRevert.
+            var previousPreExistingOverrides = preserveOverrides
+                ? new HashSet<MaterialSlotIdentifier>(_preExistingOverrides)
+                : null;
+
             _scannedSlots = PrefabScanner.ScanRenderers(_baseInstance);
 
             // Store original materials for preview reset
@@ -234,7 +243,18 @@ namespace Kanameliser.ColorVariantGenerator
                         var matProp = so.FindProperty($"m_Materials.Array.data[{slot.identifier.slotIndex}]");
                         if (matProp != null && matProp.prefabOverride)
                         {
-                            _preExistingOverrides.Add(slot.identifier);
+                            // On a rescan, carry the pre-existing flag only for slots that were
+                            // already pre-existing, or for slots we've never seen before (e.g.
+                            // overrides on a newly-added nested Prefab). A slot with a tool-made
+                            // override in the previous snapshot must stay out of
+                            // _preExistingOverrides so SelectiveRevert can revert it.
+                            bool isToolMadeOverride = preserveOverrides
+                                && previousOverrides != null
+                                && previousOverrides.ContainsKey(slot.identifier)
+                                && !(previousPreExistingOverrides?.Contains(slot.identifier) ?? false);
+
+                            if (!isToolMadeOverride)
+                                _preExistingOverrides.Add(slot.identifier);
 
                             // Resolve the Prefab asset's original material and show the
                             // instance's current material as a pre-existing override.
