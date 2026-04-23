@@ -25,6 +25,15 @@ namespace Kanameliser.ColorVariantGenerator
         /// <summary>Hierarchy depth from root (used for matching)</summary>
         public int hierarchyDepth;
 
+        /// <summary>
+        /// Live Renderer reference, used for rename-safe equality in the runtime
+        /// dictionaries that store overrides (CreatorWindow's _overrides etc.).
+        /// Not serialized — identifiers rebuilt across domain reloads come back
+        /// through PrefabScanner.
+        /// </summary>
+        [System.NonSerialized]
+        public Renderer renderer;
+
         /// <summary>Display name for UI (e.g., "Hat/0")</summary>
         public string DisplayName => string.IsNullOrEmpty(rendererPath)
             ? $"(root)/{slotIndex}"
@@ -32,16 +41,29 @@ namespace Kanameliser.ColorVariantGenerator
 
         public override bool Equals(object obj)
         {
-            if (obj is MaterialSlotIdentifier other)
-            {
-                return rendererPath == other.rendererPath && slotIndex == other.slotIndex;
-            }
-            return false;
+            if (!(obj is MaterialSlotIdentifier other)) return false;
+            if (slotIndex != other.slotIndex) return false;
+
+            // Prefer C# reference equality on the Renderer when both identifiers carry
+            // one. This survives Hierarchy renames/reparents that would invalidate
+            // path-based equality. Identifiers without a Renderer (legacy or cross-prefab
+            // metadata) fall back to path. Mixed-mode is intentionally treated as unequal
+            // to keep Equals/GetHashCode consistent.
+            bool hasRenderer = renderer != null;
+            bool otherHasRenderer = other.renderer != null;
+            if (hasRenderer != otherHasRenderer) return false;
+
+            return hasRenderer
+                ? ReferenceEquals(renderer, other.renderer)
+                : rendererPath == other.rendererPath;
         }
 
         public override int GetHashCode()
         {
-            return (rendererPath ?? "").GetHashCode() ^ slotIndex.GetHashCode();
+            int slotHash = slotIndex.GetHashCode();
+            return renderer != null
+                ? System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(renderer) ^ slotHash
+                : (rendererPath ?? "").GetHashCode() ^ slotHash;
         }
 
         /// <summary>Creates a unique lookup key for dictionary-based matching.</summary>

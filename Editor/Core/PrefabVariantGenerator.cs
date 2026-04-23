@@ -353,26 +353,24 @@ namespace Kanameliser.ColorVariantGenerator
             if (overrides == null)
                 throw new ArgumentNullException(nameof(overrides));
 
+            // Lazily-built map of base-asset Renderer ID → instance Renderer. Used to
+            // resolve overrides whose source Hierarchy GameObject was renamed/reparented
+            // after the override was captured (path lookup would silently fail).
+            Dictionary<int, Renderer> instanceRendererBySource = null;
+
             int appliedCount = 0;
             foreach (var materialOverride in overrides)
             {
                 if (materialOverride?.overrideMaterial == null) continue;
                 if (materialOverride.slot == null) continue;
 
-                Transform target = string.IsNullOrEmpty(materialOverride.slot.rendererPath)
-                    ? instance.transform
-                    : instance.transform.Find(materialOverride.slot.rendererPath);
+                var renderer = ResolveTargetRenderer(
+                    instance, materialOverride.slot, ref instanceRendererBySource);
 
-                if (target == null)
-                {
-                    Debug.LogWarning($"[Color Variant Generator] Renderer path not found: '{materialOverride.slot.rendererPath}'");
-                    continue;
-                }
-
-                var renderer = target.GetComponent<Renderer>();
                 if (renderer == null)
                 {
-                    Debug.LogWarning($"[Color Variant Generator] No Renderer component on: '{materialOverride.slot.rendererPath}'");
+                    Debug.LogWarning(
+                        $"[Color Variant Generator] Renderer not found for slot '{materialOverride.slot.DisplayName}' (path '{materialOverride.slot.rendererPath}')");
                     continue;
                 }
 
@@ -391,6 +389,65 @@ namespace Kanameliser.ColorVariantGenerator
             }
 
             return appliedCount;
+        }
+
+        /// <summary>
+        /// Finds the Renderer on <paramref name="instance"/> that corresponds to the slot.
+        /// Prefers Renderer-correspondence (rename-safe) when the slot carries a live
+        /// Renderer reference; falls back to path-based lookup otherwise.
+        /// </summary>
+        private static Renderer ResolveTargetRenderer(
+            GameObject instance,
+            MaterialSlotIdentifier slot,
+            ref Dictionary<int, Renderer> instanceRendererBySource)
+        {
+            if (slot.renderer != null)
+            {
+                instanceRendererBySource ??= BuildInstanceRendererBySourceMap(instance);
+                var sourceId = ResolveTopmostSourceInstanceId(slot.renderer);
+                if (sourceId != 0 && instanceRendererBySource.TryGetValue(sourceId, out var matched))
+                    return matched;
+            }
+
+            Transform target = string.IsNullOrEmpty(slot.rendererPath)
+                ? instance.transform
+                : instance.transform.Find(slot.rendererPath);
+            return target != null ? target.GetComponent<Renderer>() : null;
+        }
+
+        /// <summary>
+        /// Builds a map from each instance Renderer's topmost source asset (by instance ID)
+        /// to the live Renderer on the fresh instance. Walking the variant chain to the
+        /// top makes lookup robust to multi-level Variant hierarchies.
+        /// </summary>
+        private static Dictionary<int, Renderer> BuildInstanceRendererBySourceMap(GameObject instance)
+        {
+            var map = new Dictionary<int, Renderer>();
+            foreach (var r in instance.GetComponentsInChildren<Renderer>(true))
+            {
+                if (r == null) continue;
+                int sourceId = ResolveTopmostSourceInstanceId(r);
+                if (sourceId != 0 && !map.ContainsKey(sourceId))
+                    map[sourceId] = r;
+            }
+            return map;
+        }
+
+        /// <summary>
+        /// Walks <see cref="PrefabUtility.GetCorrespondingObjectFromSource"/> to the
+        /// topmost source asset and returns its instance ID. Returns the input's
+        /// instance ID when it has no source (already an asset).
+        /// </summary>
+        private static int ResolveTopmostSourceInstanceId(Object obj)
+        {
+            if (obj == null) return 0;
+            Object current = obj;
+            while (true)
+            {
+                var next = PrefabUtility.GetCorrespondingObjectFromSource(current);
+                if (next == null) return current.GetInstanceID();
+                current = next;
+            }
         }
 
         /// <summary>

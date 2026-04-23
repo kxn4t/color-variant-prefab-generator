@@ -264,19 +264,19 @@ namespace Kanameliser.ColorVariantGenerator
                 _originalMaterials[slot.identifier] = slot.baseMaterial;
             }
 
-            // Restore user-set overrides for slots that still exist
+            // Restore user-set overrides for slots that still exist.
+            // Iterate the freshly-scanned identifiers so that, when a Hierarchy rename
+            // or reparent has changed an identifier's rendererPath, the override is
+            // re-keyed to the new identifier (with the up-to-date path) rather than
+            // re-inserted under the stale one. Identifier equality is renderer-based
+            // (rename-safe), so the lookup matches across the path change.
             if (previousOverrides != null)
             {
-                foreach (var kvp in previousOverrides)
+                foreach (var slot in _scannedSlots)
                 {
-                    // Only restore if the slot still exists and wasn't already populated
-                    // by pre-existing override detection above
-                    if (kvp.Value != null
-                        && _originalMaterials.ContainsKey(kvp.Key)
-                        && !_overrides.ContainsKey(kvp.Key))
-                    {
-                        _overrides[kvp.Key] = kvp.Value;
-                    }
+                    if (_overrides.ContainsKey(slot.identifier)) continue;
+                    if (previousOverrides.TryGetValue(slot.identifier, out var prevMat) && prevMat != null)
+                        _overrides[slot.identifier] = prevMat;
                 }
             }
 

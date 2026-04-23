@@ -25,6 +25,13 @@ namespace Kanameliser.ColorVariantGenerator
 
         private Renderer FindRenderer(MaterialSlotIdentifier slot)
         {
+            // Prefer the direct Renderer reference captured during scan. This is
+            // rename-safe — renaming a GameObject doesn't invalidate the Renderer
+            // component reference. Fall back to path lookup for identifiers without
+            // a Renderer ref (not produced by this window, but keeps the helper
+            // defensive).
+            if (slot.renderer != null) return slot.renderer;
+
             if (_baseInstance == null) return null;
             var target = string.IsNullOrEmpty(slot.rendererPath)
                 ? _baseInstance.transform
