@@ -248,9 +248,21 @@ namespace Kanameliser.ColorVariantGenerator
         /// Copies all added GameObjects from the source instance to the target instance,
         /// preserving hierarchy structure and all component data.
         /// </summary>
+        /// <remarks>
+        /// After cloning, runs a reference-remap pass so that ObjectReference fields on
+        /// added components that point into the source hierarchy instance (either into
+        /// another added root or into the base-prefab portion of the source) are rewritten
+        /// to the corresponding target-side objects. Without this, those references would
+        /// be dropped as missing by SaveAsPrefabAsset.
+        /// </remarks>
         public static void CopyAddedGameObjects(GameObject sourceInstance, GameObject targetInstance)
         {
             var addedObjects = PrefabUtility.GetAddedGameObjects(sourceInstance);
+
+            // Collected across every added root so that cross-subtree references between
+            // separate added roots (each cloned by its own Instantiate call) can be fixed
+            // up after all clones exist.
+            var sourceToClone = new Dictionary<Object, Object>();
 
             foreach (var added in addedObjects)
             {
@@ -300,6 +312,110 @@ namespace Kanameliser.ColorVariantGenerator
                 if (copy == null) continue;
                 copy.name = sourceGO.name; // Remove "(Clone)" suffix
                 copy.transform.SetSiblingIndex(sourceGO.transform.GetSiblingIndex());
+
+                CollectSourceToCloneMapping(sourceGO.transform, copy.transform, sourceToClone);
+            }
+
+            if (sourceToClone.Count > 0)
+                RemapClonedReferences(sourceToClone, sourceInstance, targetInstance);
+        }
+
+        /// <summary>
+        /// Populates a map from source-side objects (GameObject / Transform / Components) to
+        /// their clones on the target side by traversing both subtrees in lockstep.
+        /// Relies on Object.Instantiate / InstantiatePrefab preserving component order and
+        /// child order, which holds on prefab instances (added components appear at the end,
+        /// so positional pairing stays valid up to the shorter length).
+        /// </summary>
+        private static void CollectSourceToCloneMapping(
+            Transform source, Transform clone, Dictionary<Object, Object> map)
+        {
+            if (source == null || clone == null) return;
+
+            map[source.gameObject] = clone.gameObject;
+            map[source] = clone;
+
+            var sourceComponents = source.GetComponents<Component>();
+            var cloneComponents = clone.GetComponents<Component>();
+            int componentCount = Math.Min(sourceComponents.Length, cloneComponents.Length);
+            for (int i = 0; i < componentCount; i++)
+            {
+                var sc = sourceComponents[i];
+                var cc = cloneComponents[i];
+                if (sc == null || cc == null) continue;
+                if (sc is Transform) continue; // already mapped via source→clone above
+                if (!map.ContainsKey(sc))
+                    map[sc] = cc;
+            }
+
+            int childCount = Math.Min(source.childCount, clone.childCount);
+            for (int i = 0; i < childCount; i++)
+            {
+                CollectSourceToCloneMapping(source.GetChild(i), clone.GetChild(i), map);
+            }
+        }
+
+        /// <summary>
+        /// Rewrites ObjectReference properties on cloned components whose current value
+        /// points into the source hierarchy instance. Two cases are handled:
+        ///   1) reference is to another added-subtree object — remapped via
+        ///      <paramref name="sourceToClone"/>
+        ///   2) reference is to a base-prefab object on the source instance — remapped to
+        ///      the corresponding object on the target instance via base-asset correspondence
+        /// References to objects outside the source instance (project assets, unrelated
+        /// scene objects) are left untouched so SaveAsPrefabAsset can handle them normally.
+        /// </summary>
+        private static void RemapClonedReferences(
+            Dictionary<Object, Object> sourceToClone,
+            GameObject sourceInstance,
+            GameObject targetInstance)
+        {
+            var sourceInstanceIds = new HashSet<int>();
+            CollectInstanceIds(sourceInstance.transform, sourceInstanceIds);
+
+            var baseToTarget = BuildBaseAssetToTargetMapping(targetInstance);
+
+            foreach (var kvp in sourceToClone)
+            {
+                if (!(kvp.Value is Component clone)) continue;
+                if (clone == null) continue;
+                // Transform cross-refs (m_Father / m_Children) are fully internal to the
+                // cloned subtree and handled by Instantiate. Skip to avoid accidental writes.
+                if (clone is Transform) continue;
+
+                using var so = new SerializedObject(clone);
+                var prop = so.GetIterator();
+                bool changed = false;
+
+                while (prop.NextVisible(enterChildren: true))
+                {
+                    if (prop.propertyType != SerializedPropertyType.ObjectReference) continue;
+
+                    var current = prop.objectReferenceValue;
+                    if (current == null) continue;
+                    if (!sourceInstanceIds.Contains(current.GetInstanceID())) continue;
+
+                    Object remapped = null;
+                    if (sourceToClone.TryGetValue(current, out var cloneRef))
+                    {
+                        remapped = cloneRef;
+                    }
+                    else
+                    {
+                        var baseAsset = PrefabUtility.GetCorrespondingObjectFromSource(current);
+                        if (baseAsset != null && baseToTarget.TryGetValue(baseAsset, out var targetRef))
+                            remapped = targetRef;
+                    }
+
+                    if (remapped != null && remapped != current)
+                    {
+                        prop.objectReferenceValue = remapped;
+                        changed = true;
+                    }
+                }
+
+                if (changed)
+                    so.ApplyModifiedPropertiesWithoutUndo();
             }
         }
 
