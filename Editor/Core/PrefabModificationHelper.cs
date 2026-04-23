@@ -227,9 +227,12 @@ namespace Kanameliser.ColorVariantGenerator
                 case SerializedPropertyType.Boolean:
                     return bool.TryParse(NormalizeBoolString(value), out bool b) && prop.boolValue == b;
                 case SerializedPropertyType.Float:
+                    // Use approximate equality so tiny rounding between Unity's serialized
+                    // and runtime representations doesn't resurrect the no-op override that
+                    // this branch exists to filter out.
                     return float.TryParse(value, System.Globalization.NumberStyles.Float,
                         System.Globalization.CultureInfo.InvariantCulture, out float f)
-                        && prop.floatValue == f;
+                        && Mathf.Approximately(prop.floatValue, f);
                 case SerializedPropertyType.String:
                     return prop.stringValue == (value ?? string.Empty);
                 case SerializedPropertyType.ObjectReference:
