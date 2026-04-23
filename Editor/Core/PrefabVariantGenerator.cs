@@ -244,7 +244,7 @@ namespace Kanameliser.ColorVariantGenerator
                 // m_TagString, m_StaticEditorFlags, etc.) and skips Transform/Component property changes.
                 var filteredMods = PrefabModificationHelper.ExtractFilteredModifications(
                     hierarchyInstance, new StandardModeOptions { includePropertyChanges = false });
-                PrefabModificationHelper.ApplyModifications(hierarchyInstance, instance, filteredMods);
+                PrefabModificationHelper.ApplyModifications(instance, filteredMods);
 
                 // Step 3: Copy added GameObjects with all their state
                 PrefabModificationHelper.CopyAddedGameObjects(hierarchyInstance, instance);

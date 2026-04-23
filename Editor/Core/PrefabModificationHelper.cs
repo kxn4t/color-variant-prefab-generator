@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEditor;
 using UnityEngine;
 using Object = UnityEngine.Object;
@@ -125,23 +124,13 @@ namespace Kanameliser.ColorVariantGenerator
             if (allModifications == null) return Array.Empty<PropertyModification>();
 
             var addedInstanceIds = BuildAddedInstanceIds(hierarchyInstance);
-
-            // Build set of instance IDs for objects that have actual overrides (visible in Inspector)
-            var objectOverrides = PrefabUtility.GetObjectOverrides(hierarchyInstance, true);
-            var overriddenInstanceIds = new HashSet<int>();
-            foreach (var objOverride in objectOverrides)
-            {
-                if (objOverride.instanceObject != null)
-                    overriddenInstanceIds.Add(objOverride.instanceObject.GetInstanceID());
-            }
-
             var filtered = new List<PropertyModification>();
 
             foreach (var mod in allModifications)
             {
                 if (mod.target == null) continue;
 
-                if (ShouldIncludeModification(mod, hierarchyInstance, addedInstanceIds, overriddenInstanceIds, options))
+                if (ShouldIncludeModification(mod, hierarchyInstance, addedInstanceIds, options))
                     filtered.Add(mod);
             }
 
@@ -155,7 +144,6 @@ namespace Kanameliser.ColorVariantGenerator
             PropertyModification mod,
             GameObject hierarchyInstance,
             HashSet<int> addedInstanceIds,
-            HashSet<int> overriddenInstanceIds,
             StandardModeOptions options)
         {
             // Always exclude material modifications (handled by material override system)
@@ -165,10 +153,6 @@ namespace Kanameliser.ColorVariantGenerator
             // Added GameObjects: always include all modifications
             if (IsAddedObject(mod.target, addedInstanceIds))
                 return true;
-
-            // Only include modifications on objects that have actual overrides
-            if (!overriddenInstanceIds.Contains(mod.target.GetInstanceID()))
-                return false;
 
             // Structural rename: include only when the current value actually differs from base.
             // Unity keeps PropertyModification entries even after the user toggles a value back to
@@ -198,32 +182,66 @@ namespace Kanameliser.ColorVariantGenerator
             if (mod.target is Transform || mod.target is Component)
                 return options.includePropertyChanges;
 
-            // Other GameObject-level overrides (m_Layer, m_TagString, m_StaticEditorFlags, etc.):
+            // Other GameObject-level overrides (m_Layer, m_StaticEditorFlags, etc.):
             // include only when the current value actually differs from base.
             return ValueDiffersFromBase(mod);
         }
 
         /// <summary>
-        /// Returns true if the modification's current value on the instance differs from the
-        /// corresponding value on the base Prefab asset. Used to drop "no-op" overrides that
-        /// Unity keeps in its PropertyModification list even after the user reverts the value
-        /// by toggling it back to the base.
-        /// Returns true (include) as a safe default when the base value cannot be resolved.
+        /// Returns true if the modification's override value differs from the current value on
+        /// the base Prefab asset. Used to drop "no-op" overrides that Unity keeps in its
+        /// PropertyModification list even after the user reverts the value by toggling it back
+        /// to the base. Returns true (include) as a safe default when the base cannot be read.
         /// </summary>
+        /// <remarks>
+        /// PropertyModification.target references the *source* Prefab asset object (not the
+        /// scene instance), so reading SerializedObject(mod.target) yields the base value —
+        /// not the user's override. The override value lives in mod.value as a string. Compare
+        /// that string against the base asset's current value.
+        /// </remarks>
         private static bool ValueDiffersFromBase(PropertyModification mod)
         {
             if (mod.target == null) return true;
 
-            var baseTarget = PrefabUtility.GetCorrespondingObjectFromSource(mod.target);
-            if (baseTarget == null) return true;
-
-            using var instanceSO = new SerializedObject(mod.target);
-            using var baseSO = new SerializedObject(baseTarget);
-            var instanceProp = instanceSO.FindProperty(mod.propertyPath);
+            using var baseSO = new SerializedObject(mod.target);
             var baseProp = baseSO.FindProperty(mod.propertyPath);
-            if (instanceProp == null || baseProp == null) return true;
+            if (baseProp == null) return true;
 
-            return !SerializedProperty.DataEquals(instanceProp, baseProp);
+            return !SerializedValueEqualsString(baseProp, mod.value, mod.objectReference);
+        }
+
+        /// <summary>
+        /// Compares a SerializedProperty's current value against a PropertyModification-style
+        /// string representation. Returns false on parse failure so callers default to "differs"
+        /// and include the mod rather than silently dropping it.
+        /// </summary>
+        private static bool SerializedValueEqualsString(SerializedProperty prop, string value, Object objectReference)
+        {
+            switch (prop.propertyType)
+            {
+                case SerializedPropertyType.Integer:
+                case SerializedPropertyType.LayerMask:
+                case SerializedPropertyType.ArraySize:
+                case SerializedPropertyType.Character:
+                    return long.TryParse(value, out long l) && prop.longValue == l;
+                case SerializedPropertyType.Boolean:
+                    return bool.TryParse(NormalizeBoolString(value), out bool b) && prop.boolValue == b;
+                case SerializedPropertyType.Float:
+                    return float.TryParse(value, System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture, out float f)
+                        && prop.floatValue == f;
+                case SerializedPropertyType.String:
+                    return prop.stringValue == (value ?? string.Empty);
+                case SerializedPropertyType.ObjectReference:
+                    return prop.objectReferenceValue == objectReference;
+                case SerializedPropertyType.Enum:
+                    // Use intValue (the underlying enum integer) rather than enumValueIndex
+                    // (the ordinal into the enum names array). They diverge for non-sequential
+                    // enums and are meaningless for [Flags] enums such as m_StaticEditorFlags.
+                    return int.TryParse(value, out int ei) && prop.intValue == ei;
+                default:
+                    return false;
+            }
         }
 
         /// <summary>
@@ -316,217 +334,225 @@ namespace Kanameliser.ColorVariantGenerator
         }
 
         /// <summary>
-        /// Applies filtered PropertyModifications to a target instance by remapping object references.
+        /// Applies filtered PropertyModifications to a fresh target instance by remapping each
+        /// modification's target (which points to the base Prefab asset object) to the
+        /// corresponding scene object on the target instance, then writing the override value
+        /// directly onto that object via SerializedObject.
         /// </summary>
-        /// <param name="sourceInstance">The original hierarchy instance where modifications were detected.</param>
-        /// <param name="targetInstance">The fresh instance to apply modifications to.</param>
-        /// <param name="modifications">Pre-filtered modifications to apply.</param>
-        public static void ApplyModifications(
-            GameObject sourceInstance, GameObject targetInstance, PropertyModification[] modifications)
+        /// <remarks>
+        /// Writing values via SerializedObject (rather than PrefabUtility.SetPropertyModifications)
+        /// is required: SetPropertyModifications updates only the override bookkeeping and leaves
+        /// the runtime state (gameObject.name / .activeSelf / .tag) at the base value. The
+        /// subsequent SaveAsPrefabAsset recomputes overrides from the diff against the base, so
+        /// any value still matching the base would be recorded as "no override".
+        /// </remarks>
+        public static void ApplyModifications(GameObject targetInstance, PropertyModification[] modifications)
         {
             if (modifications == null || modifications.Length == 0) return;
 
-            // Get the base modifications already on the target (from InstantiatePrefab)
-            var baseModifications = PrefabUtility.GetPropertyModifications(targetInstance);
-            var baseMods = baseModifications != null
-                ? new List<PropertyModification>(baseModifications)
-                : new List<PropertyModification>();
+            var baseToTarget = BuildBaseAssetToTargetMapping(targetInstance);
 
-            // Build a mapping from source objects to corresponding target objects
-            var objectMapping = BuildObjectMapping(sourceInstance, targetInstance);
-
-            // Index existing modifications by (target instance ID, propertyPath) for O(1) lookup
-            var baseModIndex = new Dictionary<(int, string), int>(baseMods.Count);
-            for (int i = 0; i < baseMods.Count; i++)
-            {
-                if (baseMods[i].target != null)
-                {
-                    var key = (baseMods[i].target.GetInstanceID(), baseMods[i].propertyPath);
-                    baseModIndex[key] = i;
-                }
-            }
+            // Group modifications by their remapped target so we can batch SerializedObject writes.
+            var modsByTarget = new Dictionary<Object, List<PropertyModification>>();
 
             foreach (var mod in modifications)
             {
                 if (mod.target == null) continue;
 
-                // Remap the target reference from source to target instance
-                Object remappedTarget;
-                if (!objectMapping.TryGetValue(mod.target, out remappedTarget))
-                {
-                    // Object might be on an added GameObject that was already copied
-                    // Try to find by path
-                    remappedTarget = FindRemappedTarget(sourceInstance, targetInstance, mod.target);
-                    if (remappedTarget == null) continue;
-                }
+                if (!baseToTarget.TryGetValue(mod.target, out var remappedTarget))
+                    continue;
 
-                var remappedMod = new PropertyModification
+                if (!modsByTarget.TryGetValue(remappedTarget, out var list))
+                {
+                    list = new List<PropertyModification>();
+                    modsByTarget[remappedTarget] = list;
+                }
+                list.Add(new PropertyModification
                 {
                     target = remappedTarget,
                     propertyPath = mod.propertyPath,
                     value = mod.value,
-                    objectReference = RemapObjectReference(mod.objectReference, objectMapping)
-                };
-
-                // Replace existing modification or add new one
-                var lookupKey = (remappedTarget.GetInstanceID(), mod.propertyPath);
-                if (baseModIndex.TryGetValue(lookupKey, out int existingIndex))
-                {
-                    baseMods[existingIndex] = remappedMod;
-                }
-                else
-                {
-                    baseModIndex[lookupKey] = baseMods.Count;
-                    baseMods.Add(remappedMod);
-                }
+                    objectReference = RemapObjectReference(mod.objectReference, baseToTarget)
+                });
             }
 
-            PrefabUtility.SetPropertyModifications(targetInstance, baseMods.ToArray());
+            foreach (var kvp in modsByTarget)
+            {
+                var target = kvp.Key;
+                using var so = new SerializedObject(target);
+                bool anyWritten = false;
+
+                foreach (var mod in kvp.Value)
+                {
+                    var prop = so.FindProperty(mod.propertyPath);
+                    if (prop == null) continue;
+                    if (WriteValueToProperty(prop, mod.value, mod.objectReference))
+                        anyWritten = true;
+                }
+
+                if (anyWritten)
+                    so.ApplyModifiedPropertiesWithoutUndo();
+
+                // GameObject.SetActive is the authoritative way to flip active state — the
+                // m_IsActive SerializedProperty write above sets the serialized value, but
+                // the runtime activeSelf state is also read by some editor paths. Keep them
+                // in sync.
+                if (target is GameObject go)
+                {
+                    foreach (var mod in kvp.Value)
+                    {
+                        if (mod.propertyPath == "m_IsActive"
+                            && bool.TryParse(NormalizeBoolString(mod.value), out bool active)
+                            && go.activeSelf != active)
+                        {
+                            go.SetActive(active);
+                        }
+                    }
+                }
+            }
         }
 
         /// <summary>
-        /// Builds a mapping from objects in the source instance to corresponding objects
-        /// in the target instance, based on hierarchy path.
+        /// Writes a PropertyModification's serialized value onto a SerializedProperty.
+        /// Returns true if the property was successfully updated.
         /// </summary>
-        private static Dictionary<Object, Object> BuildObjectMapping(
-            GameObject sourceInstance, GameObject targetInstance)
+        private static bool WriteValueToProperty(SerializedProperty prop, string value, Object objectReference)
+        {
+            switch (prop.propertyType)
+            {
+                case SerializedPropertyType.Integer:
+                case SerializedPropertyType.LayerMask:
+                case SerializedPropertyType.ArraySize:
+                case SerializedPropertyType.Character:
+                    if (long.TryParse(value, out long l))
+                    {
+                        prop.longValue = l;
+                        return true;
+                    }
+                    return false;
+                case SerializedPropertyType.Boolean:
+                    if (bool.TryParse(NormalizeBoolString(value), out bool b))
+                    {
+                        prop.boolValue = b;
+                        return true;
+                    }
+                    return false;
+                case SerializedPropertyType.Float:
+                    if (float.TryParse(value, System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture, out float f))
+                    {
+                        prop.floatValue = f;
+                        return true;
+                    }
+                    return false;
+                case SerializedPropertyType.String:
+                    prop.stringValue = value ?? string.Empty;
+                    return true;
+                case SerializedPropertyType.ObjectReference:
+                    prop.objectReferenceValue = objectReference;
+                    return true;
+                case SerializedPropertyType.Enum:
+                    // Use intValue (the underlying enum integer) rather than enumValueIndex
+                    // (the ordinal into the enum names array). They diverge for non-sequential
+                    // enums and are meaningless for [Flags] enums such as m_StaticEditorFlags.
+                    if (int.TryParse(value, out int ei))
+                    {
+                        prop.intValue = ei;
+                        return true;
+                    }
+                    return false;
+                default:
+                    // Composite / unsupported types — leave for future extension.
+                    return false;
+            }
+        }
+
+        // PropertyModification.value stores booleans as "0"/"1"; normalize to "false"/"true"
+        // so bool.TryParse can consume them.
+        private static string NormalizeBoolString(string value)
+        {
+            if (string.IsNullOrEmpty(value)) return value;
+            if (value == "0") return "false";
+            if (value == "1") return "true";
+            return value;
+        }
+
+        /// <summary>
+        /// Builds a mapping from base Prefab asset objects (GameObjects + Transforms + Components)
+        /// to the corresponding objects in the fresh target instance. Used to remap
+        /// PropertyModification.target, which Unity stores as a reference to the base asset
+        /// object rather than the scene instance object.
+        /// </summary>
+        private static Dictionary<Object, Object> BuildBaseAssetToTargetMapping(GameObject targetInstance)
         {
             var mapping = new Dictionary<Object, Object>();
-
-            // Map GameObjects by path
-            MapTransformHierarchy(sourceInstance.transform, targetInstance.transform, mapping);
-
+            CollectBaseToTarget(targetInstance.transform, mapping);
             return mapping;
         }
 
-        private static void MapTransformHierarchy(
-            Transform sourceRoot, Transform targetRoot, Dictionary<Object, Object> mapping)
+        private static void CollectBaseToTarget(Transform target, Dictionary<Object, Object> mapping)
         {
-            MapObjectAndComponents(sourceRoot, targetRoot, mapping);
+            var baseGO = PrefabUtility.GetCorrespondingObjectFromSource(target.gameObject);
+            if (baseGO != null)
+                mapping[baseGO] = target.gameObject;
 
-            // Build a name-to-child lookup for target's direct children.
-            // This avoids index-based matching which breaks when added/removed
-            // objects shift the child order between source and target.
-            var targetChildByName = new Dictionary<string, Transform>();
-            for (int i = 0; i < targetRoot.childCount; i++)
-            {
-                var child = targetRoot.GetChild(i);
-                // First occurrence wins — duplicate names are rare in prefab hierarchies
-                if (!targetChildByName.ContainsKey(child.name))
-                    targetChildByName[child.name] = child;
-            }
+            var baseTransform = PrefabUtility.GetCorrespondingObjectFromSource(target);
+            if (baseTransform != null)
+                mapping[baseTransform] = target;
 
-            for (int i = 0; i < sourceRoot.childCount; i++)
-            {
-                var sourceChild = sourceRoot.GetChild(i);
-                if (targetChildByName.TryGetValue(sourceChild.name, out var targetChild))
-                {
-                    MapTransformHierarchy(sourceChild, targetChild, mapping);
-                }
-                // else: added object — no corresponding target, skip
-            }
-        }
-
-        private static void MapObjectAndComponents(
-            Transform source, Transform target, Dictionary<Object, Object> mapping)
-        {
-            mapping[source.gameObject] = target.gameObject;
-            mapping[source] = target;
-
-            // Map components by type and order within each type
-            var sourceComponents = source.GetComponents<Component>();
-            var targetComponents = target.GetComponents<Component>();
-
-            var targetByType = new Dictionary<Type, List<Component>>();
-            foreach (var comp in targetComponents)
+            foreach (var comp in target.GetComponents<Component>())
             {
                 if (comp == null) continue;
-                var type = comp.GetType();
-                if (!targetByType.ContainsKey(type))
-                    targetByType[type] = new List<Component>();
-                targetByType[type].Add(comp);
+                var baseComp = PrefabUtility.GetCorrespondingObjectFromSource(comp);
+                if (baseComp != null && !mapping.ContainsKey(baseComp))
+                    mapping[baseComp] = comp;
             }
 
-            // Track how many components of each type we've matched so far
-            var typeIndex = new Dictionary<Type, int>();
-            foreach (var comp in sourceComponents)
-            {
-                if (comp == null) continue;
-                var type = comp.GetType();
-
-                if (!targetByType.TryGetValue(type, out var targetList)) continue;
-
-                if (!typeIndex.TryGetValue(type, out int idx))
-                    idx = 0;
-
-                if (idx < targetList.Count)
-                {
-                    mapping[comp] = targetList[idx];
-                    typeIndex[type] = idx + 1;
-                }
-            }
-        }
-
-        private static Object FindRemappedTarget(
-            GameObject sourceInstance, GameObject targetInstance, Object sourceTarget)
-        {
-            var targetGO = GetGameObject(sourceTarget);
-            if (targetGO == null) return null;
-
-            string path = GetRelativePath(sourceInstance.transform, targetGO.transform);
-            Transform targetTransform;
-            if (string.IsNullOrEmpty(path))
-            {
-                targetTransform = targetInstance.transform;
-            }
-            else
-            {
-                targetTransform = targetInstance.transform.Find(path);
-            }
-
-            if (targetTransform == null) return null;
-
-            if (sourceTarget is GameObject)
-                return targetTransform.gameObject;
-
-            if (sourceTarget is Transform)
-                return targetTransform;
-
-            if (sourceTarget is Component sourceComp)
-            {
-                // Find matching component by type and index
-                var sourceComps = targetGO.GetComponents(sourceComp.GetType());
-                int sourceIndex = Array.IndexOf(sourceComps, sourceComp);
-                if (sourceIndex < 0) sourceIndex = 0;
-
-                var targetComps = targetTransform.GetComponents(sourceComp.GetType());
-                if (sourceIndex < targetComps.Length)
-                    return targetComps[sourceIndex];
-            }
-
-            return null;
+            for (int i = 0; i < target.childCount; i++)
+                CollectBaseToTarget(target.GetChild(i), mapping);
         }
 
         private static Object RemapObjectReference(Object reference, Dictionary<Object, Object> mapping)
         {
             if (reference == null) return null;
-            Object remapped;
-            return mapping.TryGetValue(reference, out remapped) ? remapped : reference;
+            return mapping.TryGetValue(reference, out var remapped) ? remapped : reference;
         }
 
         /// <summary>
         /// Finds the transform in targetRoot that corresponds to referenceTransform's position
-        /// within sourceRoot's hierarchy.
+        /// within sourceRoot's hierarchy. Matches by the shared base Prefab asset object first
+        /// (rename-safe) and falls back to relative path for objects with no base correspondence.
         /// </summary>
         private static Transform FindCorrespondingTransform(
             Transform sourceRoot, Transform targetRoot, Transform referenceTransform)
         {
             if (referenceTransform == sourceRoot) return targetRoot;
 
+            var referenceBase = PrefabUtility.GetCorrespondingObjectFromSource(referenceTransform);
+            if (referenceBase != null)
+            {
+                var found = FindByBaseCorrespondence(targetRoot, referenceBase);
+                if (found != null) return found;
+            }
+
             string relativePath = GetRelativePath(sourceRoot, referenceTransform);
             if (string.IsNullOrEmpty(relativePath)) return targetRoot;
 
             return targetRoot.Find(relativePath);
+        }
+
+        private static Transform FindByBaseCorrespondence(Transform targetRoot, Transform referenceBase)
+        {
+            var rootBase = PrefabUtility.GetCorrespondingObjectFromSource(targetRoot);
+            if (rootBase == referenceBase) return targetRoot;
+
+            for (int i = 0; i < targetRoot.childCount; i++)
+            {
+                var child = targetRoot.GetChild(i);
+                var found = FindByBaseCorrespondence(child, referenceBase);
+                if (found != null) return found;
+            }
+            return null;
         }
 
         /// <summary>
@@ -574,13 +600,6 @@ namespace Kanameliser.ColorVariantGenerator
         {
             var go = obj is GameObject g ? g : (obj is Component c ? c.gameObject : null);
             return go != null && addedInstanceIds.Contains(go.GetInstanceID());
-        }
-
-        private static GameObject GetGameObject(Object obj)
-        {
-            if (obj is GameObject go) return go;
-            if (obj is Component comp) return comp.gameObject;
-            return null;
         }
 
         private static void CollectInstanceIds(Transform root, HashSet<int> ids)
