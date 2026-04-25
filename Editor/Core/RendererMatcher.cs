@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using UnityEditor;
 using UnityEngine;
 
 namespace Kanameliser.ColorVariantGenerator
@@ -73,7 +74,7 @@ namespace Kanameliser.ColorVariantGenerator
                 {
                     matchResult.targetSlot = match.Value.slot;
                     matchResult.matchPriority = match.Value.priority;
-                    matchedTargetKeys.Add(match.Value.slot.GetLookupKey());
+                    matchedTargetKeys.Add(GetTargetLookupKey(match.Value.slot));
                 }
 
                 results.Add(matchResult);
@@ -101,7 +102,7 @@ namespace Kanameliser.ColorVariantGenerator
             var targetSlotLookup = new Dictionary<string, ScannedMaterialSlot>(targetSlots.Count);
             foreach (var ts in targetSlots)
             {
-                var key = ts.identifier.GetLookupKey();
+                var key = GetTargetLookupKey(ts.identifier);
                 if (!targetSlotLookup.ContainsKey(key))
                     targetSlotLookup[key] = ts;
             }
@@ -128,10 +129,11 @@ namespace Kanameliser.ColorVariantGenerator
 
                 var targetId = match.Value.slot;
                 int priority = match.Value.priority;
-                matchedTargetKeys.Add(targetId.GetLookupKey());
+                var targetKey = GetTargetLookupKey(targetId);
+                matchedTargetKeys.Add(targetKey);
 
                 // Find the target's current material
-                if (!targetSlotLookup.TryGetValue(targetId.GetLookupKey(), out var targetSlot))
+                if (!targetSlotLookup.TryGetValue(targetKey, out var targetSlot))
                     continue;
 
                 // Only include if materials differ
@@ -164,7 +166,14 @@ namespace Kanameliser.ColorVariantGenerator
             HashSet<string> matchedTargetKeys)
         {
             // Inline candidate filtering — avoids allocating a new list per call
-            bool IsAvailable(ScannedMaterialSlot s) => !matchedTargetKeys.Contains(s.identifier.GetLookupKey());
+            bool IsAvailable(ScannedMaterialSlot s) => !matchedTargetKeys.Contains(GetTargetLookupKey(s.identifier));
+
+            // If the source is a Prefab Variant of the target base, Unity can tell us
+            // the exact parent Renderer even when copied nested Prefabs have similar
+            // names. Prefer that correspondence before falling back to path/name tiers.
+            var prefabSourceMatch = TryMatchByPrefabSource(sourceSlot, targetSlots, IsAvailable);
+            if (prefabSourceMatch.HasValue)
+                return prefabSourceMatch.Value;
 
             // Common hard filters: slotIndex + rendererType
             bool HasSlotAndType(ScannedMaterialSlot c) =>
@@ -237,6 +246,45 @@ namespace Kanameliser.ColorVariantGenerator
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Matches via Unity's Prefab correspondence chain. This is especially important when
+        /// a Batch source is already a Variant of the selected base and the base contains
+        /// multiple instances of the same nested Prefab.
+        /// </summary>
+        private static (MaterialSlotIdentifier slot, int priority)? TryMatchByPrefabSource(
+            MaterialSlotIdentifier sourceSlot,
+            List<ScannedMaterialSlot> targetSlots,
+            Func<ScannedMaterialSlot, bool> isAvailable)
+        {
+            if (sourceSlot.renderer == null) return null;
+
+            var current = sourceSlot.renderer;
+            while (true)
+            {
+                current = PrefabUtility.GetCorrespondingObjectFromSource(current) as Renderer;
+                if (current == null) return null;
+
+                var candidates = targetSlots.Where(c =>
+                    isAvailable(c) &&
+                    c.identifier.slotIndex == sourceSlot.slotIndex &&
+                    c.identifier.renderer == current).ToList();
+
+                if (candidates.Count > 0)
+                    return (candidates[0].identifier, 1);
+            }
+        }
+
+        private static string GetTargetLookupKey(MaterialSlotIdentifier slot)
+        {
+            if (slot?.renderer != null)
+            {
+                int rendererHash = System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(slot.renderer);
+                return $"{rendererHash}|{slot.slotIndex}";
+            }
+
+            return slot?.GetLookupKey() ?? "";
         }
 
         /// <summary>

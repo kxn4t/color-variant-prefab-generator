@@ -232,7 +232,7 @@ msgid "creator.warning.componentChangesIgnored"
 msgstr "Hierarchyインスタンスにコンポーネントの追加/削除がありますが、「Transform/コンポーネントの変更を含める」がOFFのため保存されません。生成されるVariantはベースPrefabと同一になります。続行しますか？オプションをONにする場合はキャンセルしてください。"
 
 msgid "creator.variantParent:lockedTooltip"
-msgstr "「Transform/コンポーネントの変更を含める」がONのため、直接の親に固定されています。このオプションはHierarchyインスタンスを現在の親のVariantとして保存するため、祖先への張り替えはできません。祖先を選びたい場合はオプションをOFFにしてください。"
+msgstr "Standardモードでは直接の親に固定されます。祖先を選びたい場合はStrictモードに切り替えてください。"
 
 # ── マテリアルブラウザー ──
 

@@ -208,6 +208,9 @@ namespace Kanameliser.ColorVariantGenerator
         /// <summary>Paths of GameObjects whose names were changed.</summary>
         public List<string> renamedGameObjects = new List<string>();
 
+        /// <summary>"path::propertyPath" entries for GameObject-level property changes on existing GameObjects.</summary>
+        public List<string> changedGameObjectProperties = new List<string>();
+
         /// <summary>"path::ComponentType" entries for components added to existing GameObjects.</summary>
         public List<string> addedComponents = new List<string>();
 
@@ -215,14 +218,16 @@ namespace Kanameliser.ColorVariantGenerator
         public List<string> removedComponents = new List<string>();
 
         /// <summary>
-        /// Whether any GameObject-level structural changes (added/removed/renamed GameObjects) exist.
+        /// Whether any GameObject-level structural changes (added/removed/renamed GameObjects,
+        /// or property changes on existing GameObjects themselves) exist.
         /// These are transferred by both Standard mode paths.
         /// Component-level changes are tracked separately via <see cref="HasComponentChanges"/>
         /// because the filtered path (includePropertyChanges = false) does NOT transfer them,
         /// and conflating the two would let a "components only" diff bypass the empty-changes warning.
         /// </summary>
         public bool HasStructuralChanges =>
-            addedGameObjects.Count > 0 || removedGameObjects.Count > 0 || renamedGameObjects.Count > 0;
+            addedGameObjects.Count > 0 || removedGameObjects.Count > 0
+            || renamedGameObjects.Count > 0 || changedGameObjectProperties.Count > 0;
 
         /// <summary>
         /// Whether any component-level changes (added or removed components on existing GameObjects) exist.

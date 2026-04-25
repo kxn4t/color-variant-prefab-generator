@@ -204,7 +204,7 @@ Base Prefab (Hierarchy Instance)
 
 ### 出力と生成
 
-- **Variant Parent**: ベースPrefabが多段Variantの場合に表示。祖先チェーンから親を選択可能。祖先以外を選択した場合、中間Variantの差分も含めてオーバーライドが自動再計算。`{BaseName}`は選択した親のPrefab名に追従。
+- **Variant Parent**: ベースPrefabが多段Variantの場合に表示。祖先チェーンから親を選択可能。直接親以外を選んだ場合、祖先に対する最終状態の差分としてマテリアルオーバーライドが自動再計算される。`{BaseName}`は選択した親のPrefab名に追従。**Standardモードでは直接親に固定される**（祖先に張り替えると中間Variantの構造差分が保持できないため）。
 - **Variant Name / Output Path / Naming Template / Output Preview**: 標準の出力設定
 - 成功時: 次アクション選択ダイアログ（Keep Current Overrides / Clear Overrides）
 

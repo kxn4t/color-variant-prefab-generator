@@ -78,6 +78,33 @@ namespace Kanameliser.ColorVariantGenerator
                 // They are optionally included during generation via StandardModeOptions.
             }
 
+            // Detect GameObject-level property overrides other than rename
+            // (active state, tag, layer, static flags, etc.). These are transferred by the
+            // filtered Standard path, so they must count as real changes for the Generate
+            // button's empty-change confirmation.
+            var allModifications = PrefabUtility.GetPropertyModifications(hierarchyInstance);
+            if (allModifications != null)
+            {
+                Dictionary<Object, Object> baseToInstance = null;
+
+                foreach (var mod in allModifications)
+                {
+                    if (!(mod.target is GameObject)) continue;
+                    if (string.IsNullOrEmpty(mod.propertyPath)) continue;
+                    if (mod.propertyPath == "m_Name") continue; // already tracked as rename
+                    if (mod.propertyPath.StartsWith("m_Component")) continue; // component add/remove is tracked separately
+                    if (IsAddedObject(mod.target, addedInstanceIds)) continue;
+                    if (!ValueDiffersFromBase(mod)) continue;
+
+                    baseToInstance ??= BuildBaseAssetToTargetMapping(hierarchyInstance);
+                    string objectPath = GetGameObjectPathForModification(
+                        hierarchyInstance, mod.target, baseToInstance);
+                    string entry = $"{objectPath}::{mod.propertyPath}";
+                    if (!summary.changedGameObjectProperties.Contains(entry))
+                        summary.changedGameObjectProperties.Add(entry);
+                }
+            }
+
             // Detect added components on existing GameObjects
             var addedComponents = PrefabUtility.GetAddedComponents(hierarchyInstance);
             foreach (var addedComp in addedComponents)
@@ -635,6 +662,20 @@ namespace Kanameliser.ColorVariantGenerator
         {
             if (reference == null) return null;
             return mapping.TryGetValue(reference, out var remapped) ? remapped : reference;
+        }
+
+        private static string GetGameObjectPathForModification(
+            GameObject hierarchyInstance,
+            Object modificationTarget,
+            Dictionary<Object, Object> baseToInstance)
+        {
+            if (baseToInstance.TryGetValue(modificationTarget, out var remapped)
+                && remapped is GameObject instanceGo)
+            {
+                return GetRelativePath(hierarchyInstance.transform, instanceGo.transform);
+            }
+
+            return modificationTarget is GameObject targetGo ? targetGo.name : "(unknown)";
         }
 
         /// <summary>

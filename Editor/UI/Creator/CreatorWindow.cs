@@ -141,8 +141,7 @@ namespace Kanameliser.ColorVariantGenerator
                 w._importPrefabField.tooltip = Localization.S("creator.importField.tooltip");
                 w._optionsButton.tooltip = Localization.S("creator.optionsButton.tooltip");
                 w._clearDropdownButton.tooltip = Localization.S("creator.clearDropdown.tooltip");
-                if (w._parentDropdown != null)
-                    w._parentDropdown.tooltip = Localization.S("creator.variantParent:tooltip");
+                w.ApplyVariantParentLockState();
                 if (w._basePrefabWarningLabel.style.display == DisplayStyle.Flex && w._currentWarningKey != null)
                     w._basePrefabWarningLabel.text = Localization.S(w._currentWarningKey);
                 if (w._normalModeButton != null)

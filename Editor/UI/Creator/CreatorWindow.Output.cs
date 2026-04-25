@@ -284,16 +284,31 @@ namespace Kanameliser.ColorVariantGenerator
         {
             if (overridesList.Count > 0) return true;
 
-            // In Standard mode, GameObject-level structural changes alone are a valid reason to generate
+            // In Standard mode, supported GameObject-level changes alone are a valid reason to generate
             if (_creatorMode == CreatorMode.Standard && _structuralSummary != null && _structuralSummary.HasStructuralChanges)
                 return true;
 
             if (_creatorMode == CreatorMode.Standard)
             {
+                bool includePropertyChanges = EditorPrefs.GetBool(IncludePropertyChangesKey, false);
+
+                // Native path persists every override Unity recognizes — Transform /
+                // component property changes and component add/remove included.
+                // _structuralSummary tracks the filtered-path GameObject-level changes, but
+                // Transform/component property overrides are only represented by Unity's
+                // Prefab override list. Ask Unity directly for this native path.
+                // Second arg (includeDefaultOverride) is false so the prefab-instance root
+                // Transform's always-present default overrides don't count as a real change.
+                if (includePropertyChanges
+                    && _baseInstance != null
+                    && PrefabUtility.HasPrefabInstanceAnyOverrides(_baseInstance, false))
+                {
+                    return true;
+                }
+
                 // Component add/remove only: the filtered path (includePropertyChanges = false)
                 // does not transfer these, so the resulting Variant would silently match the base.
                 // Warn explicitly so the user can switch the toggle ON or cancel.
-                bool includePropertyChanges = EditorPrefs.GetBool(IncludePropertyChangesKey, false);
                 if (!includePropertyChanges
                     && _structuralSummary != null && _structuralSummary.HasComponentChanges)
                 {
@@ -466,16 +481,17 @@ namespace Kanameliser.ColorVariantGenerator
         }
 
         /// <summary>
-        /// Locks the Variant Parent dropdown to the direct parent when Standard mode's
-        /// "Include Transform/component changes" option is ON, because the native save
-        /// path cannot retarget the Variant parent to an arbitrary ancestor.
+        /// Locks the Variant Parent dropdown to the direct parent in Standard mode.
+        /// Neither Standard save path can retarget to a non-direct ancestor: the native
+        /// path is bound to the Hierarchy instance's existing prefab connection, and the
+        /// filtered path only captures diffs against the direct parent, so structural
+        /// changes from intermediate Variants would be silently dropped.
         /// </summary>
         internal void ApplyVariantParentLockState()
         {
             if (_parentDropdown == null) return;
 
-            bool lockToDirectParent = _creatorMode == CreatorMode.Standard
-                && EditorPrefs.GetBool(IncludePropertyChangesKey, false);
+            bool lockToDirectParent = _creatorMode == CreatorMode.Standard;
 
             if (lockToDirectParent)
             {

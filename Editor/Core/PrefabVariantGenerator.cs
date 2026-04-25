@@ -96,23 +96,26 @@ namespace Kanameliser.ColorVariantGenerator
                 var options = request.options ?? new StandardModeOptions();
                 var materialOverrides = request.materialOverrides ?? new List<MaterialOverride>();
 
+                // Neither Standard path can retarget the Variant parent to a non-direct ancestor:
+                //   - Native path saves a duplicate of the hierarchy instance, which preserves the
+                //     instance's existing prefab connection — the selected ancestor is ignored.
+                //   - Filtered path only transfers PrefabUtility.GetAddedGameObjects / RemovedGameObjects
+                //     / PropertyModifications, which report diffs against the direct parent only.
+                //     Structural changes baked into intermediate Variants would be silently dropped.
+                // Reject the request rather than producing a Variant that quietly diverges from
+                // the user's intent.
+                var hierarchySource = PrefabUtility.GetCorrespondingObjectFromSource(request.hierarchyInstance);
+                if (request.basePrefabAsset != null && hierarchySource != null
+                    && request.basePrefabAsset != hierarchySource)
+                {
+                    result.errorMessage =
+                        "Standard mode cannot retarget the Variant parent to an ancestor — structural changes from intermediate Variants cannot be preserved. " +
+                        "Set the Variant Parent dropdown back to the direct parent, or switch to Strict mode.";
+                    return result;
+                }
+
                 if (options.includePropertyChanges)
                 {
-                    // Native path saves a duplicate of the hierarchy instance, which preserves
-                    // the instance's existing prefab connection. That makes "retarget the parent
-                    // to an arbitrary ancestor" impossible on this path — the chosen ancestor
-                    // would be silently ignored. Reject the request instead of producing a
-                    // Variant whose parent does not match the user's selection.
-                    var hierarchySource = PrefabUtility.GetCorrespondingObjectFromSource(request.hierarchyInstance);
-                    if (request.basePrefabAsset != null && hierarchySource != null
-                        && request.basePrefabAsset != hierarchySource)
-                    {
-                        result.errorMessage =
-                            "Standard mode with 'Include Transform/component changes' cannot retarget the Variant parent to an ancestor. " +
-                            "Either turn the option OFF, or set the Variant Parent dropdown back to the direct parent.";
-                        return result;
-                    }
-
                     // Native path: let Unity decide what is an override.
                     // Save a duplicate of the hierarchy instance, then re-open the saved variant
                     // through PrefabUtility's contents API to layer material overrides on top
@@ -162,10 +165,18 @@ namespace Kanameliser.ColorVariantGenerator
             // the prefab connection on the duplicate, so the saved result becomes a Variant of
             // the base. Selection is restored afterwards to avoid disturbing the user's state.
             var previousSelection = Selection.objects;
-            Selection.activeGameObject = hierarchyInstance;
-            Unsupported.DuplicateGameObjectsUsingPasteboard(); // TODO: より良い実装方法があれば変えたい
-            var duplicate = Selection.activeGameObject;
-            Selection.objects = previousSelection;
+            GameObject duplicate = null;
+            try
+            {
+                Selection.objects = new Object[] { hierarchyInstance };
+                Selection.activeGameObject = hierarchyInstance;
+                Unsupported.DuplicateGameObjectsUsingPasteboard(); // TODO: より良い実装方法があれば変えたい
+                duplicate = Selection.activeGameObject;
+            }
+            finally
+            {
+                Selection.objects = previousSelection;
+            }
 
             if (duplicate == null || duplicate == hierarchyInstance)
             {
@@ -419,15 +430,23 @@ namespace Kanameliser.ColorVariantGenerator
         /// Builds a map from each instance Renderer's topmost source asset (by instance ID)
         /// to the live Renderer on the fresh instance. Walking the variant chain to the
         /// top makes lookup robust to multi-level Variant hierarchies.
+        /// Colliding source IDs (e.g. multiple instances of the same nested Prefab used
+        /// for L/R accessories) are dropped from the map so callers fall back to path
+        /// lookup — matching the wrong Renderer silently would overwrite unrelated slots.
         /// </summary>
         private static Dictionary<int, Renderer> BuildInstanceRendererBySourceMap(GameObject instance)
         {
             var map = new Dictionary<int, Renderer>();
+            var collided = new HashSet<int>();
             foreach (var r in instance.GetComponentsInChildren<Renderer>(true))
             {
                 if (r == null) continue;
                 int sourceId = ResolveTopmostSourceInstanceId(r);
-                if (sourceId != 0 && !map.ContainsKey(sourceId))
+                if (sourceId == 0) continue;
+                if (collided.Contains(sourceId)) continue;
+                if (map.Remove(sourceId))
+                    collided.Add(sourceId);
+                else
                     map[sourceId] = r;
             }
             return map;

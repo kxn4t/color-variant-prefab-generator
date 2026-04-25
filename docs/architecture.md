@@ -108,8 +108,10 @@ PrefabVariantGenerator.GenerateStandardVariant(StandardGenerationRequest)
     │     └─ Step 4: マテリアルオーバーライド適用
     │
     └─ includePropertyChanges = true   →  GenerateStandardVariantNative()
-          ├─ Step 1: Object.Instantiate(hierarchyInstance) で複製
-          │            → 元のシーンインスタンスのPrefab接続を保護
+          ├─ Step 1: Unsupported.DuplicateGameObjectsUsingPasteboard() で複製
+          │            → Ctrl+D と同じ経路でPrefab接続を維持したまま複製
+          │              （Object.InstantiateだとPrefab接続が切れ、保存結果が
+          │               Variantではなく通常のPrefabになるため不可）
           ├─ Step 2: PrefabUtility.SaveAsPrefabAsset(duplicate, path)
           │            → Unityが認識するoverride全部を保存
           ├─ Step 3: PrefabUtility.LoadPrefabContents(path)
@@ -122,7 +124,7 @@ PrefabVariantGenerator.GenerateStandardVariant(StandardGenerationRequest)
 Prefab Variantファイル (.prefab)
 ```
 
-Filteredパスのstep順序には意味がある: `ApplyModifications`は`SetPropertyModifications`で修正リストを置換するため、先に`CopyAddedGameObjects`を行うと追加オブジェクトが破棄される。そのため削除 → プロパティ → 追加 → マテリアルの順で処理する。Nativeパスは必ずHierarchyインスタンスを `Object.Instantiate` で複製してから保存する: `PrefabUtility.SaveAsPrefabAsset` は引数のGameObjectのPrefab接続を新アセット側へ張り替える副作用があり、シーン上のユーザー操作対象を直接渡すと元のbase Prefabへの接続が失われるため。
+Filteredパスのstep順序には意味がある: `ApplyModifications`は`SetPropertyModifications`で修正リストを置換するため、先に`CopyAddedGameObjects`を行うと追加オブジェクトが破棄される。そのため削除 → プロパティ → 追加 → マテリアルの順で処理する。Nativeパスは必ずHierarchyインスタンスを複製してから保存する: `PrefabUtility.SaveAsPrefabAsset` は引数のGameObjectのPrefab接続を新アセット側へ張り替える副作用があり、シーン上のユーザー操作対象を直接渡すと元のbase Prefabへの接続が失われるため。複製には`Unsupported.DuplicateGameObjectsUsingPasteboard()`を使う — `Object.Instantiate`はPrefabインスタンス上でPrefab接続を失うため、保存結果がVariantではなく通常のPrefabになってしまう。この関数はCtrl+Dと同じEditor内部経路でPrefab接続を保ったまま複製する。
 
 ### CV Creator — Prefabからのインポート
 
@@ -175,7 +177,7 @@ PrefabScanner.ScanRenderers()       PrefabScanner.ScanRenderers()
 - **Prefab Variant生成時、プレビューインスタンスは使用しない**: 常に`PrefabUtility.InstantiatePrefab()`で新規インスタンスを生成し、構造変更（Standardモードのみ）とマテリアルオーバーライドを適用して保存する。プレビュー中にHierarchy上で意図せず変更された他のプロパティ（Transform位置など）がVariantに混入することを防ぐため。Standardモードでも構造変更は`PrefabModificationHelper`経由で選択的に転写し、プレビューインスタンス自体は保存しない。
 - **Standard / Strictモード**: `CreatorMode`列挙型で管理。`EditorPrefs`に永続化。Strictモードは従来の挙動（マテリアルオーバーライドのみ）を維持するための退避ルート。Standardモードは`StandardModeOptions.includePropertyChanges`で2経路に分岐する:
   - **OFF（デフォルト）**: ベースPrefabを新規インスタンス化し、`PrefabModificationHelper`経由で「GameObjectの追加・削除」と「既存GameObject自体のプロパティ変更（`m_Name` / `m_IsActive` / `m_Layer` / `m_TagString` / `m_StaticEditorFlags` 等）」を選択的に転写する影響範囲の限定されたパス。Transform・Componentのプロパティ変更とコンポーネントの追加・削除は意図的に除外する
-  - **ON**: Hierarchyインスタンスを `Object.Instantiate` で複製してから `PrefabUtility.SaveAsPrefabAsset` で保存し、Unityが認識するoverride全部（Transform・コンポーネントのプロパティ・コンポーネント追加削除など）を取り込む。マテリアルoverrideは `PrefabUtility.LoadPrefabContents` で再オープンして上から適用する。複製ステップは必須で、Hierarchyインスタンスを直接渡すと元のbase Prefabへの接続が新Variantへ張り替えられてしまうのを防ぐ
+  - **ON**: Hierarchyインスタンスを `Unsupported.DuplicateGameObjectsUsingPasteboard()`（Ctrl+Dと同じ内部経路）で複製してから `PrefabUtility.SaveAsPrefabAsset` で保存し、Unityが認識するoverride全部（Transform・コンポーネントのプロパティ・コンポーネント追加削除など）を取り込む。`Object.Instantiate` はPrefabインスタンスに対してPrefab接続を失うため、保存結果がVariantではなく通常のPrefabになってしまい不可。マテリアルoverrideは `PrefabUtility.LoadPrefabContents` で再オープンして上から適用する。複製ステップは必須で、Hierarchyインスタンスを直接渡すと元のbase Prefabへの接続が新Variantへ張り替えられてしまうのを防ぐ
 - **`ApplyModifications` はベースPrefab経由でマッピング**: `PropertyModification.target` はシーン上のインスタンスではなく *ベースPrefabアセット側のオブジェクト* を指す。そのため `BuildBaseAssetToTargetMapping` で `GetCorrespondingObjectFromSource` を辿って「ベースアセット → 新規targetインスタンス」の対応表を作り、mod.targetをtargetインスタンス側のオブジェクトにremapする。`CopyAddedGameObjects` の `FindCorrespondingTransform` も同じ対応方式を使い、リネーム済み祖先の下に追加されたGameObjectでも親を正しく見つけられる。
 - **override値は`SerializedObject`で直接書く**: `SetPropertyModifications` はoverrideリストを更新するだけでGameObjectの実値（`.name` / `.activeSelf` / `.tag`）は変更しない。後続の `SaveAsPrefabAsset` はベースとの差分からoverrideを再計算するため、実値がベースのままだと空のVariantになる。このため `ApplyModifications` は `SerializedObject.ApplyModifiedPropertiesWithoutUndo` で値自体を書き込み、`m_IsActive` については `GameObject.SetActive` も併用してランタイム状態を同期する。
 - **`ValueDiffersFromBase` は `mod.value` 文字列とベースを比較**: `PropertyModification.target` はベースアセット側を指すので、`SerializedObject(mod.target)` を読んでもユーザーのoverride値は得られない。ユーザーの値は `mod.value` 文字列にしか存在しないため、ベースアセットの現在値と文字列を型ごとに比較して「リバート済みのno-op override」を除外する。
