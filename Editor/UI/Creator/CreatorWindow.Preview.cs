@@ -162,16 +162,35 @@ namespace Kanameliser.ColorVariantGenerator
 
         private void OnClearOverrides()
         {
-            ResetPreview();
+            // ResetPreview's visual restore loop does not call Undo.RecordObject, so a
+            // Clear performed during active preview was not undoable. Drive the visual
+            // restore through RestoreOriginalMaterials (which records Undo per renderer)
+            // instead, and bracket everything in a named Undo group so a single Ctrl+Z
+            // brings the override materials back.
+            bool wasPreviewActive = _previewActive;
 
-            // Restore pre-existing overrides to the Prefab's original materials.
-            // ResetPreview only runs when _previewActive is true, but pre-existing
-            // overrides are loaded at scan time without activating preview mode.
-            if (!_previewActive)
+            Undo.SetCurrentGroupName("Clear All Material Overrides");
+
+            RestoreOriginalMaterials();
+
+            // Revert preview-introduced prefab overrides per the user-selected mode.
+            // Mirrors the tail of ResetPreview; only meaningful while preview was active.
+            if (wasPreviewActive && _baseInstance != null
+                && PrefabUtility.IsPartOfPrefabInstance(_baseInstance))
             {
-                RestoreOriginalMaterials();
+                var mode = (PreviewRevertMode)EditorPrefs.GetInt(PreviewRevertModeKey, 0);
+                switch (mode)
+                {
+                    case PreviewRevertMode.SelectiveRevert:
+                        RevertToolOverrides();
+                        break;
+                    case PreviewRevertMode.FullRevert:
+                        RevertAllRendererOverrides();
+                        break;
+                }
             }
 
+            _previewActive = false;
             _overrides.Clear();
             _variantNameField.value = "";
             RefreshAllUI();
