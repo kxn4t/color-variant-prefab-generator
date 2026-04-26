@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0-beta.1] - 2026-04-26
+
 ### Added
 
 - **CV Creator: Standard Mode** — New default mode that preserves GameObject-level changes made to the Hierarchy instance (added/removed GameObjects plus property overrides on existing GameObjects: name, active state, tag, layer, static flags, etc.) and writes them into the generated Prefab Variant alongside material overrides. An optional toggle switches to a "save the Hierarchy instance directly as a Prefab Variant" path that captures every override Unity recognizes (Transform changes, component property changes, components added/removed, etc.). The previous material-only behavior remains available as **Strict Mode** via the Options menu on the Base Prefab field
