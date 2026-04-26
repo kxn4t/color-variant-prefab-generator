@@ -140,8 +140,7 @@ namespace Kanameliser.ColorVariantGenerator
         {
             int matched = entry.matchResults.Count(r => r.targetSlot != null);
             int total = entry.matchResults.Count;
-            int unmatched = total - matched;
-            bool isFullyMatched = unmatched == 0;
+            bool isFullyMatched = matched == total;
             string variantName = entry.EffectiveVariantName;
             if (string.IsNullOrEmpty(variantName)) variantName = Localization.S("batch.matching.unnamed");
 
@@ -155,55 +154,57 @@ namespace Kanameliser.ColorVariantGenerator
             if (!isFullyMatched)
                 foldout.AddToClassList("variant-match-foldout--warning");
 
-            // Unmatched items (shown prominently)
-            var unmatchedResults = entry.matchResults.Where(r => r.targetSlot == null).ToList();
-            if (unmatchedResults.Count > 0)
-            {
-                var unmatchedHeader = new Label($"{EditorUIUtility.Warning} {Localization.S("batch.matching.unmatched", unmatchedResults.Count)}");
-                unmatchedHeader.AddToClassList("unmatched-header");
-                foldout.Add(unmatchedHeader);
-
-                foreach (var result in unmatchedResults)
-                {
-                    var row = CreateUnmatchedRow(result);
-                    foldout.Add(row);
-                }
-            }
-
-            // Matched items
-            var matchedResults = entry.matchResults.Where(r => r.targetSlot != null).ToList();
-            if (matchedResults.Count > 0)
-            {
-                if (isFullyMatched)
-                {
-                    // All matched — show rows directly without sub-foldout
-                    foreach (var result in matchedResults)
-                    {
-                        var row = CreateMatchedRow(result);
-                        foldout.Add(row);
-                    }
-                }
-                else
-                {
-                    // Mixed — wrap matched items in a collapsed sub-foldout
-                    var matchedFoldout = new Foldout
-                    {
-                        text = Localization.S("batch.matching.matched", matchedResults.Count),
-                        value = false
-                    };
-                    matchedFoldout.AddToClassList("matched-foldout");
-
-                    foreach (var result in matchedResults)
-                    {
-                        var row = CreateMatchedRow(result);
-                        matchedFoldout.Add(row);
-                    }
-
-                    foldout.Add(matchedFoldout);
-                }
-            }
+            AddUnmatchedSection(foldout, entry.matchResults);
+            AddMatchedSection(foldout, entry.matchResults, isFullyMatched);
 
             return foldout;
+        }
+
+        private void AddUnmatchedSection(Foldout foldout, List<RendererMatchResult> matchResults)
+        {
+            var unmatchedResults = matchResults.Where(r => r.targetSlot == null).ToList();
+            if (unmatchedResults.Count == 0) return;
+
+            var unmatchedHeader = new Label($"{EditorUIUtility.Warning} {Localization.S("batch.matching.unmatched", unmatchedResults.Count)}");
+            unmatchedHeader.AddToClassList("unmatched-header");
+            foldout.Add(unmatchedHeader);
+
+            foreach (var result in unmatchedResults)
+            {
+                foldout.Add(CreateUnmatchedRow(result));
+            }
+        }
+
+        private void AddMatchedSection(Foldout foldout, List<RendererMatchResult> matchResults, bool isFullyMatched)
+        {
+            var matchedResults = matchResults.Where(r => r.targetSlot != null).ToList();
+            if (matchedResults.Count == 0) return;
+
+            if (isFullyMatched)
+            {
+                // All matched — show rows directly without sub-foldout
+                foreach (var result in matchedResults)
+                {
+                    foldout.Add(CreateMatchedRow(result));
+                }
+            }
+            else
+            {
+                // Mixed — wrap matched items in a collapsed sub-foldout
+                var matchedFoldout = new Foldout
+                {
+                    text = Localization.S("batch.matching.matched", matchedResults.Count),
+                    value = false
+                };
+                matchedFoldout.AddToClassList("matched-foldout");
+
+                foreach (var result in matchedResults)
+                {
+                    matchedFoldout.Add(CreateMatchedRow(result));
+                }
+
+                foldout.Add(matchedFoldout);
+            }
         }
 
         private VisualElement CreateUnmatchedRow(RendererMatchResult result)

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using UnityEditor;
 using UnityEngine;
 
 namespace Kanameliser.ColorVariantGenerator
@@ -73,7 +74,7 @@ namespace Kanameliser.ColorVariantGenerator
                 {
                     matchResult.targetSlot = match.Value.slot;
                     matchResult.matchPriority = match.Value.priority;
-                    matchedTargetKeys.Add(match.Value.slot.GetLookupKey());
+                    matchedTargetKeys.Add(GetTargetLookupKey(match.Value.slot));
                 }
 
                 results.Add(matchResult);
@@ -101,7 +102,7 @@ namespace Kanameliser.ColorVariantGenerator
             var targetSlotLookup = new Dictionary<string, ScannedMaterialSlot>(targetSlots.Count);
             foreach (var ts in targetSlots)
             {
-                var key = ts.identifier.GetLookupKey();
+                var key = GetTargetLookupKey(ts.identifier);
                 if (!targetSlotLookup.ContainsKey(key))
                     targetSlotLookup[key] = ts;
             }
@@ -128,10 +129,11 @@ namespace Kanameliser.ColorVariantGenerator
 
                 var targetId = match.Value.slot;
                 int priority = match.Value.priority;
-                matchedTargetKeys.Add(targetId.GetLookupKey());
+                var targetKey = GetTargetLookupKey(targetId);
+                matchedTargetKeys.Add(targetKey);
 
                 // Find the target's current material
-                if (!targetSlotLookup.TryGetValue(targetId.GetLookupKey(), out var targetSlot))
+                if (!targetSlotLookup.TryGetValue(targetKey, out var targetSlot))
                     continue;
 
                 // Only include if materials differ
@@ -164,7 +166,14 @@ namespace Kanameliser.ColorVariantGenerator
             HashSet<string> matchedTargetKeys)
         {
             // Inline candidate filtering — avoids allocating a new list per call
-            bool IsAvailable(ScannedMaterialSlot s) => !matchedTargetKeys.Contains(s.identifier.GetLookupKey());
+            bool IsAvailable(ScannedMaterialSlot s) => !matchedTargetKeys.Contains(GetTargetLookupKey(s.identifier));
+
+            // If the source is a Prefab Variant of the target base, Unity can tell us
+            // the exact parent Renderer even when copied nested Prefabs have similar
+            // names. Prefer that correspondence before falling back to path/name tiers.
+            var prefabSourceMatch = TryMatchByPrefabSource(sourceSlot, targetSlots, IsAvailable);
+            if (prefabSourceMatch.HasValue)
+                return prefabSourceMatch.Value;
 
             // Common hard filters: slotIndex + rendererType
             bool HasSlotAndType(ScannedMaterialSlot c) =>
@@ -240,6 +249,45 @@ namespace Kanameliser.ColorVariantGenerator
         }
 
         /// <summary>
+        /// Matches via Unity's Prefab correspondence chain. This is especially important when
+        /// a Batch source is already a Variant of the selected base and the base contains
+        /// multiple instances of the same nested Prefab.
+        /// </summary>
+        private static (MaterialSlotIdentifier slot, int priority)? TryMatchByPrefabSource(
+            MaterialSlotIdentifier sourceSlot,
+            List<ScannedMaterialSlot> targetSlots,
+            Func<ScannedMaterialSlot, bool> isAvailable)
+        {
+            if (sourceSlot.renderer == null) return null;
+
+            var current = sourceSlot.renderer;
+            while (true)
+            {
+                current = PrefabUtility.GetCorrespondingObjectFromSource(current) as Renderer;
+                if (current == null) return null;
+
+                var candidates = targetSlots.Where(c =>
+                    isAvailable(c) &&
+                    c.identifier.slotIndex == sourceSlot.slotIndex &&
+                    c.identifier.renderer == current).ToList();
+
+                if (candidates.Count > 0)
+                    return (candidates[0].identifier, 1);
+            }
+        }
+
+        private static string GetTargetLookupKey(MaterialSlotIdentifier slot)
+        {
+            if (slot?.renderer != null)
+            {
+                int rendererHash = System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(slot.renderer);
+                return $"{rendererHash}|{slot.slotIndex}";
+            }
+
+            return slot?.GetLookupKey() ?? "";
+        }
+
+        /// <summary>
         /// Determines whether a target name is eligible for the P5 fuzzy tier.
         /// Eligible if normalized names match or names share a common base name.
         /// </summary>
@@ -249,6 +297,29 @@ namespace Kanameliser.ColorVariantGenerator
             if (string.Equals(sourceNormalized, targetNormalized, StringComparison.OrdinalIgnoreCase)) return true;
             if (HasCommonBaseName(sourceName, targetName, EligibilityMinTokenLength)) return true;
             return false;
+        }
+
+        /// <summary>
+        /// Returns true if the candidate's base material name matches the given material.
+        /// </summary>
+        private static bool HasMatchingMaterialName(ScannedMaterialSlot candidate, Material baseMaterial)
+        {
+            return baseMaterial != null &&
+                   candidate.baseMaterial != null &&
+                   candidate.baseMaterial.name == baseMaterial.name;
+        }
+
+        /// <summary>
+        /// Narrows candidates to those with a matching base material name if possible.
+        /// Returns the narrowed list if exactly one or more match, otherwise returns candidates unchanged.
+        /// </summary>
+        private static List<ScannedMaterialSlot> NarrowByMaterialName(
+            List<ScannedMaterialSlot> candidates, Material baseMaterial)
+        {
+            if (baseMaterial == null) return candidates;
+
+            var byMaterial = candidates.Where(c => HasMatchingMaterialName(c, baseMaterial)).ToList();
+            return byMaterial.Count > 0 ? byMaterial : candidates;
         }
 
         /// <summary>
@@ -262,15 +333,8 @@ namespace Kanameliser.ColorVariantGenerator
         {
             if (candidates.Count == 1) return candidates[0];
 
-            // Prefer matching base material name
-            if (baseMaterial != null)
-            {
-                var byMaterial = candidates.Where(c =>
-                    c.baseMaterial != null &&
-                    c.baseMaterial.name == baseMaterial.name).ToList();
-                if (byMaterial.Count == 1) return byMaterial[0];
-                if (byMaterial.Count > 1) candidates = byMaterial;
-            }
+            candidates = NarrowByMaterialName(candidates, baseMaterial);
+            if (candidates.Count == 1) return candidates[0];
 
             // Score by hierarchy path similarity, then depth proximity, then Levenshtein distance
             string sourcePath = sourceSlot.rendererPath ?? "";
@@ -303,24 +367,17 @@ namespace Kanameliser.ColorVariantGenerator
             var scored = candidates.Select(c =>
             {
                 string targetNormalized = NormalizeName(c.identifier.objectName);
-                float nameScore;
-                if (string.Equals(sourceNormalized, targetNormalized, StringComparison.OrdinalIgnoreCase))
-                    nameScore = NormalizedNameScore;
-                else
-                    nameScore = FuzzyNameScore;
+                float nameScore = string.Equals(sourceNormalized, targetNormalized, StringComparison.OrdinalIgnoreCase)
+                    ? NormalizedNameScore
+                    : FuzzyNameScore;
 
                 float pathScore = PathSegmentScore(sourcePath, c.identifier.rendererPath ?? "");
-                float totalScore = nameScore + pathScore;
-
-                bool materialMatch = baseMaterial != null &&
-                    c.baseMaterial != null &&
-                    c.baseMaterial.name == baseMaterial.name;
 
                 return new
                 {
                     slot = c,
-                    totalScore,
-                    materialMatch,
+                    totalScore = nameScore + pathScore,
+                    materialMatch = HasMatchingMaterialName(c, baseMaterial),
                     depthDiff = Math.Abs(c.identifier.hierarchyDepth - sourceDepth),
                     levenshtein = LevenshteinDistance(sourcePath, c.identifier.rendererPath ?? "")
                 };

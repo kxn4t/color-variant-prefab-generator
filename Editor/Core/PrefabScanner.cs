@@ -35,6 +35,7 @@ namespace Kanameliser.ColorVariantGenerator
                     {
                         identifier = new MaterialSlotIdentifier
                         {
+                            renderer = renderer,
                             rendererPath = path,
                             slotIndex = i,
                             rendererType = rendererType,

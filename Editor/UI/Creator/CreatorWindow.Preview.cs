@@ -25,6 +25,13 @@ namespace Kanameliser.ColorVariantGenerator
 
         private Renderer FindRenderer(MaterialSlotIdentifier slot)
         {
+            // Prefer the direct Renderer reference captured during scan. This is
+            // rename-safe — renaming a GameObject doesn't invalidate the Renderer
+            // component reference. Fall back to path lookup for identifiers without
+            // a Renderer ref (not produced by this window, but keeps the helper
+            // defensive).
+            if (slot.renderer != null) return slot.renderer;
+
             if (_baseInstance == null) return null;
             var target = string.IsNullOrEmpty(slot.rendererPath)
                 ? _baseInstance.transform
@@ -155,10 +162,67 @@ namespace Kanameliser.ColorVariantGenerator
 
         private void OnClearOverrides()
         {
-            ResetPreview();
+            // ResetPreview's visual restore loop does not call Undo.RecordObject, so a
+            // Clear performed during active preview was not undoable. Drive the visual
+            // restore through RestoreOriginalMaterials (which records Undo per renderer)
+            // instead, and bracket everything in a named Undo group so a single Ctrl+Z
+            // brings the override materials back.
+            bool wasPreviewActive = _previewActive;
+
+            Undo.SetCurrentGroupName("Clear All Material Overrides");
+
+            RestoreOriginalMaterials();
+
+            // Revert preview-introduced prefab overrides per the user-selected mode.
+            // Mirrors the tail of ResetPreview; only meaningful while preview was active.
+            if (wasPreviewActive && _baseInstance != null
+                && PrefabUtility.IsPartOfPrefabInstance(_baseInstance))
+            {
+                var mode = (PreviewRevertMode)EditorPrefs.GetInt(PreviewRevertModeKey, 0);
+                switch (mode)
+                {
+                    case PreviewRevertMode.SelectiveRevert:
+                        RevertToolOverrides();
+                        break;
+                    case PreviewRevertMode.FullRevert:
+                        RevertAllRendererOverrides();
+                        break;
+                }
+            }
+
+            _previewActive = false;
             _overrides.Clear();
             _variantNameField.value = "";
             RefreshAllUI();
+        }
+
+        /// <summary>
+        /// Restores all renderer materials to <see cref="_originalMaterials"/> snapshot values.
+        /// Unlike <see cref="ResetPreview"/>, this runs unconditionally regardless of preview state.
+        /// </summary>
+        private void RestoreOriginalMaterials()
+        {
+            if (_baseInstance == null) return;
+
+            foreach (var kvp in _originalMaterials)
+            {
+                var slot = kvp.Key;
+                var originalMaterial = kvp.Value;
+
+                var renderer = FindRenderer(slot);
+                if (renderer == null) continue;
+
+                var materials = renderer.sharedMaterials;
+                if (slot.slotIndex >= 0 && slot.slotIndex < materials.Length
+                    && materials[slot.slotIndex] != originalMaterial)
+                {
+                    Undo.RecordObject(renderer, "Clear Material Override");
+                    materials[slot.slotIndex] = originalMaterial;
+                    renderer.sharedMaterials = materials;
+                }
+            }
+
+            SceneView.RepaintAll();
         }
     }
 }

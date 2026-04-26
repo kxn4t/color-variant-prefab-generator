@@ -208,6 +208,32 @@ msgstr "オーバーライドを保持"
 msgid "creator.error.generateFailed"
 msgstr "Prefab Variantの生成に失敗しました:\n{0}"
 
+# ── Creator: Standard/Strictモード ──
+
+msgid "creator.menu.modeStrict"
+msgstr "Strictモード（マテリアルのみ）"
+
+msgid "creator.strictIndicator"
+msgstr "Strictモード"
+
+msgid "creator.strictIndicator:tooltip"
+msgstr "マテリアルオーバーライドのみが保存されます。Hierarchyインスタンス上の構造変更は無視されます。オプションメニューから変更できます。"
+
+msgid "creator.standard.includePropertyChanges"
+msgstr "Transform/コンポーネントの変更を含める"
+
+msgid "creator.standard.includePropertyChanges:tooltip"
+msgstr "有効にするとHierarchyインスタンスがそのままPrefab Variantとして保存され、すべてのoverrideが保存されます。無効の場合、オブジェクトの追加・削除に加えて既存オブジェクト自体のプロパティ変更（リネーム・アクティブ状態・Tagなど）のみが保存されます（マテリアル変更は常に適用されます）"
+
+msgid "creator.warning.noChanges"
+msgstr "構造変更もマテリアルオーバーライドもありません。生成されるVariantはベースPrefabと同一になります。続行しますか？"
+
+msgid "creator.warning.componentChangesIgnored"
+msgstr "Hierarchyインスタンスにコンポーネントの追加/削除がありますが、「Transform/コンポーネントの変更を含める」がOFFのため保存されません。生成されるVariantはベースPrefabと同一になります。続行しますか？オプションをONにする場合はキャンセルしてください。"
+
+msgid "creator.variantParent:lockedTooltip"
+msgstr "Standardモードでは直接の親に固定されます。祖先を選びたい場合はStrictモードに切り替えてください。"
+
 # ── マテリアルブラウザー ──
 
 msgid "browser.title"

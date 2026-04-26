@@ -1,52 +1,5 @@
 /* Color Variant Batch Generator Window Styles */
-
-/* Language switcher */
-.language-switcher {
-    margin-bottom: 8px;
-}
-
-/* Main container */
-.main-container {
-    padding: 10px;
-    flex-grow: 1;
-}
-
-/* Section styles */
-.section-container {
-    margin-bottom: 10px;
-    padding: 10px;
-    background-color: rgba(255, 255, 255, 0.05);
-    border-radius: 4px;
-}
-
-.section-label {
-    -unity-font-style: bold;
-    margin-bottom: 5px;
-    font-size: 13px;
-}
-
-/* Info box */
-.info-box {
-    padding: 6px 8px;
-    margin-bottom: 8px;
-    color: rgba(255, 255, 255, 0.6);
-    font-size: 11px;
-    background-color: rgba(100, 150, 255, 0.08);
-    border-radius: 3px;
-    white-space: normal;
-}
-
-/* Base prefab section */
-.base-prefab-row {
-    flex-direction: row;
-    align-items: center;
-}
-
-.base-prefab-field {
-    flex-grow: 1;
-    flex-shrink: 1;
-    min-width: 0;
-}
+/* Common styles (.language-switcher, .main-container, .section-container, etc.) are in Common.uss */
 
 /* Variant list section */
 .variant-list-header {
@@ -168,7 +121,7 @@
 }
 
 .match-summary-warning > .unity-foldout__toggle > .unity-foldout__text {
-    color: #e8a040;
+    color: #e5c463;
 }
 
 .match-results-container {
@@ -179,10 +132,10 @@
 
 .unmatched-header {
     padding: 4px 8px;
-    background-color: rgba(232, 160, 64, 0.15);
+    background-color: rgba(229, 196, 99, 0.15);
     -unity-font-style: bold;
     font-size: 12px;
-    color: #e8a040;
+    color: #e5c463;
 }
 
 .matched-foldout {
@@ -199,7 +152,7 @@
 }
 
 .match-row-unmatched {
-    background-color: rgba(232, 160, 64, 0.05);
+    background-color: rgba(229, 196, 99, 0.05);
 }
 
 .match-row-matched {
@@ -265,54 +218,15 @@
 }
 
 .variant-match-foldout--warning > .unity-foldout__toggle > .unity-foldout__text {
-    color: #e8a040;
+    color: #e5c463;
 }
 
-/* Output section */
-.output-section {
-    margin-bottom: 10px;
-}
-
-.output-row {
-    flex-direction: row;
-    align-items: center;
-    margin-bottom: 4px;
-}
-
-.output-label {
-    width: 110px;
-    -unity-text-align: middle-left;
-}
-
-.output-field {
-    flex-grow: 1;
-    flex-shrink: 1;
-    min-width: 0;
-}
-
-.browser-browse-button {
-    width: 28px;
-    flex-shrink: 0;
-    margin-left: 2px;
-}
-
-.output-preview-label {
-    margin-top: 4px;
-    color: rgba(255, 255, 255, 0.6);
-    font-size: 11px;
-    white-space: normal;
-}
-
-/* Action buttons */
-.action-section {
-    flex-direction: row;
-    justify-content: flex-end;
-    margin-top: 5px;
-    margin-bottom: 10px;
-}
-
+/* Batch-specific generate button override */
 .generate-button {
-    height: 30px;
     min-width: 250px;
-    -unity-font-style: bold;
+}
+
+/* Batch-specific action section override */
+.action-section {
+    margin-bottom: 10px;
 }

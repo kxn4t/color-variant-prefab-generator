@@ -85,7 +85,20 @@ namespace Kanameliser.ColorVariantGenerator
             _materialSlotsScroll.Clear();
             _slotObjectFields.Clear();
 
-            if (_scannedSlots.Count == 0)
+            var (addedPaths, pathToRootName) = BuildAddedRendererInfo();
+
+            // In Strict mode, filter out slots from added GameObjects
+            List<ScannedMaterialSlot> displaySlots;
+            if (_creatorMode == CreatorMode.Strict && addedPaths.Count > 0)
+            {
+                (displaySlots, _) = SplitSlotsByAddedPaths(_scannedSlots, addedPaths);
+            }
+            else
+            {
+                displaySlots = _scannedSlots;
+            }
+
+            if (displaySlots.Count == 0)
             {
                 _slotsInfoLabel.text = Localization.S("creator.materialSlots");
                 if (_basePrefabAsset != null)
@@ -99,11 +112,101 @@ namespace Kanameliser.ColorVariantGenerator
 
             if (_bulkMode)
             {
-                RefreshBulkModeUI();
+                RefreshBulkModeUI(displaySlots, addedPaths, pathToRootName);
             }
             else
             {
-                RefreshNormalModeUI();
+                RefreshNormalModeUI(displaySlots, addedPaths, pathToRootName);
+            }
+        }
+
+        // ────────────────────────────────────────────────
+        // Added-object detection
+        // ────────────────────────────────────────────────
+
+        /// <summary>
+        /// Analyzes added GameObjects and returns renderer paths and a mapping from
+        /// renderer path to its added root object name. Returns empty collections
+        /// when the base instance is not a Prefab instance.
+        /// </summary>
+        private (HashSet<string> addedPaths, Dictionary<string, string> pathToRootName) BuildAddedRendererInfo()
+        {
+            var paths = new HashSet<string>();
+            var pathToRoot = new Dictionary<string, string>();
+
+            if (_baseInstance == null || !PrefabUtility.IsPartOfPrefabInstance(_baseInstance))
+                return (paths, pathToRoot);
+
+            var addedObjects = PrefabUtility.GetAddedGameObjects(_baseInstance);
+            foreach (var added in addedObjects)
+            {
+                string rootName = added.instanceGameObject.name;
+                var renderers = added.instanceGameObject.GetComponentsInChildren<Renderer>(true);
+                foreach (var r in renderers)
+                {
+                    string path = GetRendererRelativePath(_baseInstance.transform, r.transform);
+                    paths.Add(path);
+                    pathToRoot[path] = rootName;
+                }
+            }
+            return (paths, pathToRoot);
+        }
+
+        private static string GetRendererRelativePath(Transform root, Transform target)
+        {
+            if (target == root) return "";
+            var parts = new List<string>();
+            var current = target;
+            while (current != null && current != root)
+            {
+                parts.Add(current.name);
+                current = current.parent;
+            }
+            parts.Reverse();
+            return string.Join("/", parts);
+        }
+
+        /// <summary>
+        /// Splits slots into base Prefab slots and added object slots.
+        /// </summary>
+        private static (List<ScannedMaterialSlot> baseSlots, List<ScannedMaterialSlot> addedSlots) SplitSlotsByAddedPaths(
+            List<ScannedMaterialSlot> slots, HashSet<string> addedPaths)
+        {
+            if (addedPaths.Count == 0)
+                return (slots, new List<ScannedMaterialSlot>());
+
+            var baseSlots = new List<ScannedMaterialSlot>();
+            var addedSlots = new List<ScannedMaterialSlot>();
+            foreach (var s in slots)
+            {
+                if (addedPaths.Contains(s.identifier.rendererPath))
+                    addedSlots.Add(s);
+                else
+                    baseSlots.Add(s);
+            }
+            return (baseSlots, addedSlots);
+        }
+
+        /// <summary>
+        /// Groups added slots by their root object name, renders a section header for each,
+        /// and calls the provided callback to populate the section content.
+        /// </summary>
+        private void AddAddedObjectSections(
+            List<ScannedMaterialSlot> addedSlots,
+            Dictionary<string, string> pathToRootName,
+            Action<IGrouping<string, ScannedMaterialSlot>> renderSection)
+        {
+            var addedByRoot = addedSlots
+                .GroupBy(s => pathToRootName.TryGetValue(s.identifier.rendererPath, out var name) ? name : "")
+                .OrderBy(g => g.Key);
+
+            foreach (var rootGroup in addedByRoot)
+            {
+                var sectionHeader = new Label(rootGroup.Key);
+                sectionHeader.AddToClassList("added-object-header");
+                _materialSlotsScroll.Add(sectionHeader);
+
+                renderSection(rootGroup);
             }
         }
 
@@ -111,71 +214,117 @@ namespace Kanameliser.ColorVariantGenerator
         // Normal Mode
         // ────────────────────────────────────────────────
 
-        private void RefreshNormalModeUI()
+        private void RefreshNormalModeUI(
+            List<ScannedMaterialSlot> displaySlots,
+            HashSet<string> addedPaths,
+            Dictionary<string, string> pathToRootName)
         {
-            var groupedSlots = _scannedSlots
+            var (baseSlots, addedSlots) = SplitSlotsByAddedPaths(displaySlots, addedPaths);
+
+            var baseGroups = baseSlots
                 .GroupBy(s => s.identifier.rendererPath)
                 .OrderBy(g => g.Key)
                 .ToList();
 
-            _slotsInfoLabel.text = Localization.S("creator.materialSlots.info", groupedSlots.Count, _scannedSlots.Count);
+            _slotsInfoLabel.text = Localization.S("creator.materialSlots.info",
+                baseGroups.Count + addedSlots.GroupBy(s => s.identifier.rendererPath).Count(),
+                displaySlots.Count);
+
+            // Collect all renderer paths for Alt+click toggle-all
+            var addedRendererGroups = addedSlots
+                .GroupBy(s => s.identifier.rendererPath)
+                .ToList();
+            var allRendererPaths = baseGroups.Select(g => g.Key)
+                .Concat(addedRendererGroups.Select(g => g.Key))
+                .ToList();
 
             // Alt+click: toggle all collapsible groups at once
             Action<bool> toggleAll = open =>
             {
-                foreach (var g in groupedSlots)
-                    _rendererFoldoutState[g.Key] = open;
+                foreach (var path in allRendererPaths)
+                    _rendererFoldoutState[path] = open;
                 SetAllCollapsibleStates(_materialSlotsScroll, open);
             };
 
-            foreach (var group in groupedSlots)
+            // Base Prefab renderers (no section header)
+            foreach (var group in baseGroups)
             {
-                var firstSlot = group.First();
-                var rendererPath = firstSlot.identifier.rendererPath;
+                AddRendererGroup(group, toggleAll);
+            }
 
-                bool defaultOpen = !_rendererFoldoutState.TryGetValue(rendererPath, out var savedState) || savedState;
-
-                var (headerContent, content, collapsible) = CreateCollapsibleGroup(
-                    defaultOpen,
-                    isOpen => _rendererFoldoutState[rendererPath] = isOpen,
-                    toggleAll);
-
-                // Renderer icon
-                var iconContent = GetRendererIcon(firstSlot.identifier.rendererType);
-                if (iconContent != null)
-                {
-                    var icon = new Image { image = iconContent };
-                    icon.AddToClassList("renderer-icon");
-                    headerContent.Add(icon);
-                }
-
-                // Renderer name
-                var nameLabel = new Label(firstSlot.identifier.objectName);
-                nameLabel.AddToClassList("renderer-name");
-                headerContent.Add(nameLabel);
-
-                // Click header content to select GameObject in Hierarchy
-                var capturedRendererPath = rendererPath;
-                headerContent.RegisterCallback<MouseDownEvent>(evt =>
-                {
-                    if (evt.button == 0 && _baseInstance != null)
+            // Added object renderers (grouped by added root, with section headers)
+            if (addedSlots.Count > 0)
+            {
+                AddAddedObjectSections(addedSlots, pathToRootName,
+                    rootGroup =>
                     {
-                        var target = string.IsNullOrEmpty(capturedRendererPath)
-                            ? _baseInstance.transform
-                            : _baseInstance.transform.Find(capturedRendererPath);
-                        if (target != null)
-                            Selection.activeGameObject = target.gameObject;
-                    }
-                });
+                        var rendererGroups = rootGroup
+                            .GroupBy(s => s.identifier.rendererPath)
+                            .OrderBy(g => g.Key);
+                        foreach (var group in rendererGroups)
+                            AddRendererGroup(group, toggleAll);
+                    });
+            }
+        }
 
-                _materialSlotsScroll.Add(collapsible);
+        private void AddRendererGroup(IGrouping<string, ScannedMaterialSlot> group, Action<bool> toggleAll)
+        {
+            var firstSlot = group.First();
+            var rendererPath = firstSlot.identifier.rendererPath;
 
-                // Slot rows
-                foreach (var slot in group.OrderBy(s => s.identifier.slotIndex))
+            // Use saved state if available; default to open for first-time display
+            // and persist the default so subsequent rebuilds are stable.
+            bool defaultOpen;
+            if (_rendererFoldoutState.TryGetValue(rendererPath, out var savedState))
+            {
+                defaultOpen = savedState;
+            }
+            else
+            {
+                defaultOpen = true;
+                _rendererFoldoutState[rendererPath] = true;
+            }
+
+            var (headerContent, content, collapsible) = CreateCollapsibleGroup(
+                defaultOpen,
+                isOpen => _rendererFoldoutState[rendererPath] = isOpen,
+                toggleAll);
+
+            // Renderer icon
+            var iconContent = GetRendererIcon(firstSlot.identifier.rendererType);
+            if (iconContent != null)
+            {
+                var icon = new Image { image = iconContent };
+                icon.AddToClassList("renderer-icon");
+                headerContent.Add(icon);
+            }
+
+            // Renderer name
+            var nameLabel = new Label(firstSlot.identifier.objectName);
+            nameLabel.AddToClassList("renderer-name");
+            headerContent.Add(nameLabel);
+
+            // Click header content to select GameObject in Hierarchy
+            var capturedRendererPath = rendererPath;
+            headerContent.RegisterCallback<MouseDownEvent>(evt =>
+            {
+                if (evt.button == 0 && _baseInstance != null)
                 {
-                    var row = CreateSlotRow(slot);
-                    content.Add(row);
+                    var target = string.IsNullOrEmpty(capturedRendererPath)
+                        ? _baseInstance.transform
+                        : _baseInstance.transform.Find(capturedRendererPath);
+                    if (target != null)
+                        Selection.activeGameObject = target.gameObject;
                 }
+            });
+
+            _materialSlotsScroll.Add(collapsible);
+
+            // Slot rows
+            foreach (var slot in group.OrderBy(s => s.identifier.slotIndex))
+            {
+                var row = CreateSlotRow(slot);
+                content.Add(row);
             }
         }
 
@@ -193,28 +342,37 @@ namespace Kanameliser.ColorVariantGenerator
                 row.AddToClassList("slot-row-unchanged");
             }
 
-            // Slot index
+            AddBaseMaterialElements(row, slot);
+            var overridePreview = AddOverrideElements(row, slot, hasOverride, currentOverride);
+            var overrideField = AddOverrideField(row, slot);
+            AddSlotClearButton(row, overrideField);
+            RegisterSlotRowHandlers(row, slot, overridePreview, overrideField);
+
+            return row;
+        }
+
+        private void AddBaseMaterialElements(VisualElement row, ScannedMaterialSlot slot)
+        {
             var indexLabel = new Label($"[{slot.identifier.slotIndex}]");
             indexLabel.AddToClassList("slot-index");
             row.Add(indexLabel);
 
-            // Base material preview thumbnail
             var basePreview = new Image();
             basePreview.AddToClassList("slot-base-preview");
             EditorUIUtility.SetMaterialPreview(basePreview, slot.baseMaterial);
             row.Add(basePreview);
 
-            // Base material name
             var baseName = new Label(slot.baseMaterial != null ? slot.baseMaterial.name : Localization.S("creator.materialSlots.none"));
             baseName.AddToClassList("slot-base-name");
             row.Add(baseName);
 
-            // Arrow
             var arrow = new Label(EditorUIUtility.Arrow);
             arrow.AddToClassList("slot-arrow");
             row.Add(arrow);
+        }
 
-            // Override material preview thumbnail
+        private Image AddOverrideElements(VisualElement row, ScannedMaterialSlot slot, bool hasOverride, Material currentOverride)
+        {
             var overridePreview = new Image();
             overridePreview.AddToClassList("slot-override-preview");
             if (hasOverride)
@@ -222,8 +380,11 @@ namespace Kanameliser.ColorVariantGenerator
                 EditorUIUtility.SetMaterialPreview(overridePreview, currentOverride);
             }
             row.Add(overridePreview);
+            return overridePreview;
+        }
 
-            // Override material ObjectField
+        private ObjectField AddOverrideField(VisualElement row, ScannedMaterialSlot slot)
+        {
             var overrideField = new ObjectField
             {
                 objectType = typeof(Material),
@@ -244,10 +405,12 @@ namespace Kanameliser.ColorVariantGenerator
             });
             row.Add(overrideField);
 
-            // Store ObjectField reference for browser integration
             _slotObjectFields[slot.identifier] = overrideField;
+            return overrideField;
+        }
 
-            // Clear button
+        private void AddSlotClearButton(VisualElement row, ObjectField overrideField)
+        {
             var clearBtn = new Button(() =>
             {
                 overrideField.value = null;
@@ -258,6 +421,12 @@ namespace Kanameliser.ColorVariantGenerator
             };
             clearBtn.AddToClassList("slot-clear-button");
             row.Add(clearBtn);
+        }
+
+        private void RegisterSlotRowHandlers(
+            VisualElement row, ScannedMaterialSlot slot, Image overridePreview, ObjectField overrideField)
+        {
+            var capturedSlot = slot;
 
             // Click override preview to select the override material in the Inspector
             overridePreview.RegisterCallback<MouseDownEvent>(evt =>
@@ -282,9 +451,7 @@ namespace Kanameliser.ColorVariantGenerator
                 }
             });
 
-            RegisterSlotDragAndDrop(row, overrideField);
-
-            return row;
+            RegisterMaterialDragAndDrop(row, mat => overrideField.value = mat);
         }
 
         private IVisualElementScheduledItem _slotHighlightSchedule;
@@ -343,57 +510,87 @@ namespace Kanameliser.ColorVariantGenerator
         // Bulk Mode
         // ────────────────────────────────────────────────
 
-        private void RefreshBulkModeUI()
+        private void RefreshBulkModeUI(
+            List<ScannedMaterialSlot> displaySlots,
+            HashSet<string> addedPaths,
+            Dictionary<string, string> pathToRootName)
         {
-            var materialGroups = GroupByEffectiveMaterial();
+            var (baseSlots, addedSlots) = SplitSlotsByAddedPaths(displaySlots, addedPaths);
+
+            var baseMaterialGroups = GroupByEffectiveMaterial(baseSlots);
+            var addedMaterialGroups = GroupByEffectiveMaterial(addedSlots);
 
             _slotsInfoLabel.text = Localization.S("creator.materialSlots.bulkInfo",
-                materialGroups.Count, _scannedSlots.Count);
+                baseMaterialGroups.Count, displaySlots.Count);
+
+            // Collect all material keys for Alt+click toggle-all
+            var allMaterialKeys = baseMaterialGroups.Select(g => g.Key)
+                .Concat(addedMaterialGroups.Select(g => g.Key))
+                .Distinct()
+                .ToList();
 
             // Alt+click: toggle all collapsible groups at once
             Action<bool> toggleAll = open =>
             {
-                foreach (var g in materialGroups)
-                    SetBulkFoldout(g.Key, open);
+                foreach (var mat in allMaterialKeys)
+                    SetBulkFoldout(mat, open);
                 SetAllCollapsibleStates(_materialSlotsScroll, open);
             };
 
-            foreach (var group in materialGroups)
+            // Base Prefab slots (no section header)
+            foreach (var group in baseMaterialGroups)
             {
-                var effectiveMaterial = group.Key;
-                var slots = group.ToList();
-                int overrideCount = slots.Count(s => _overrides.ContainsKey(s.identifier));
-
-                bool defaultOpen = GetBulkFoldout(effectiveMaterial);
-
-                var (headerContent, content, collapsible) = CreateCollapsibleGroup(
-                    defaultOpen,
-                    isOpen => SetBulkFoldout(effectiveMaterial, isOpen),
-                    toggleAll);
-
-                if (overrideCount == 0)
-                {
-                    collapsible.AddToClassList("bulk-group-no-overrides");
-                }
-
-                CreateBulkGroupHeader(headerContent, effectiveMaterial, slots, overrideCount);
-
-                foreach (var slot in slots.OrderBy(s => s.identifier.objectName).ThenBy(s => s.identifier.slotIndex))
-                {
-                    var childRow = CreateBulkChildRow(slot, effectiveMaterial);
-                    content.Add(childRow);
-                }
-
-                _materialSlotsScroll.Add(collapsible);
+                AddBulkMaterialGroup(group, toggleAll);
             }
+
+            // Added object slots (grouped by added root, with section headers)
+            if (addedSlots.Count > 0)
+            {
+                AddAddedObjectSections(addedSlots, pathToRootName,
+                    rootGroup =>
+                    {
+                        var materialGroups = GroupByEffectiveMaterial(rootGroup.ToList());
+                        foreach (var group in materialGroups)
+                            AddBulkMaterialGroup(group, toggleAll);
+                    });
+            }
+        }
+
+        private void AddBulkMaterialGroup(IGrouping<Material, ScannedMaterialSlot> group, Action<bool> toggleAll)
+        {
+            var effectiveMaterial = group.Key;
+            var slots = group.ToList();
+            int overrideCount = slots.Count(s => _overrides.ContainsKey(s.identifier));
+
+            bool defaultOpen = GetBulkFoldout(effectiveMaterial);
+
+            var (headerContent, content, collapsible) = CreateCollapsibleGroup(
+                defaultOpen,
+                isOpen => SetBulkFoldout(effectiveMaterial, isOpen),
+                toggleAll);
+
+            if (overrideCount == 0)
+            {
+                collapsible.AddToClassList("bulk-group-no-overrides");
+            }
+
+            CreateBulkGroupHeader(headerContent, effectiveMaterial, slots, overrideCount);
+
+            foreach (var slot in slots.OrderBy(s => s.identifier.objectName).ThenBy(s => s.identifier.slotIndex))
+            {
+                var childRow = CreateBulkChildRow(slot, effectiveMaterial);
+                content.Add(childRow);
+            }
+
+            _materialSlotsScroll.Add(collapsible);
         }
 
         /// <summary>
         /// Groups scanned slots by their effective material (override if set, base otherwise).
         /// </summary>
-        private List<IGrouping<Material, ScannedMaterialSlot>> GroupByEffectiveMaterial()
+        private List<IGrouping<Material, ScannedMaterialSlot>> GroupByEffectiveMaterial(List<ScannedMaterialSlot> slots)
         {
-            return _scannedSlots
+            return slots
                 .GroupBy(s =>
                 {
                     if (_overrides.TryGetValue(s.identifier, out var overrideMat) && overrideMat != null)
@@ -408,13 +605,25 @@ namespace Kanameliser.ColorVariantGenerator
         private void CreateBulkGroupHeader(VisualElement headerContent, Material effectiveMaterial,
             List<ScannedMaterialSlot> slots, int overrideCount)
         {
-            // Material thumbnail
+            var (thumbnail, nameLabel) = AddBulkHeaderInfo(headerContent, effectiveMaterial, slots.Count, overrideCount);
+            AddBulkHeaderControls(headerContent, effectiveMaterial, slots, overrideCount);
+
+            // Click thumbnail/name to select material in Inspector + highlight in browser
+            RegisterMaterialClickHandler(thumbnail, effectiveMaterial, headerContent);
+            RegisterMaterialClickHandler(nameLabel, effectiveMaterial, headerContent);
+
+            // Header D&D for bulk assignment
+            RegisterMaterialDragAndDrop(headerContent, mat => ApplyBulkOverride(slots, mat));
+        }
+
+        private (Image thumbnail, Label nameLabel) AddBulkHeaderInfo(
+            VisualElement headerContent, Material effectiveMaterial, int slotCount, int overrideCount)
+        {
             var thumbnail = new Image();
             thumbnail.AddToClassList("slot-base-preview");
             EditorUIUtility.SetMaterialPreview(thumbnail, effectiveMaterial);
             headerContent.Add(thumbnail);
 
-            // Material name
             string matName = effectiveMaterial != null
                 ? effectiveMaterial.name
                 : Localization.S("creator.materialSlots.none");
@@ -423,12 +632,10 @@ namespace Kanameliser.ColorVariantGenerator
             nameLabel.AddToClassList("bulk-group-name");
             headerContent.Add(nameLabel);
 
-            // Slot count
-            var countLabel = new Label($"({Localization.S("creator.bulk.slotsCount", slots.Count)})");
+            var countLabel = new Label($"({Localization.S("creator.bulk.slotsCount", slotCount)})");
             countLabel.AddToClassList("bulk-group-count");
             headerContent.Add(countLabel);
 
-            // Override count badge (only shown when overrides exist)
             if (overrideCount > 0)
             {
                 var badge = new Label(overrideCount.ToString());
@@ -436,19 +643,22 @@ namespace Kanameliser.ColorVariantGenerator
                 headerContent.Add(badge);
             }
 
-            // Arrow
+            return (thumbnail, nameLabel);
+        }
+
+        private void AddBulkHeaderControls(
+            VisualElement headerContent, Material effectiveMaterial, List<ScannedMaterialSlot> slots, int overrideCount)
+        {
             var arrow = new Label(EditorUIUtility.Arrow);
             arrow.AddToClassList("slot-arrow");
             headerContent.Add(arrow);
 
-            // Override ObjectField for bulk assignment
             var overrideField = new ObjectField
             {
                 objectType = typeof(Material),
                 allowSceneObjects = false
             };
             overrideField.AddToClassList("slot-override-field");
-            overrideField.AddToClassList("bulk-header-override-field");
 
             var capturedSlots = slots;
             overrideField.RegisterValueChangedCallback(evt =>
@@ -461,24 +671,14 @@ namespace Kanameliser.ColorVariantGenerator
             });
             headerContent.Add(overrideField);
 
-            // Clear button
-            bool hasOverrides = overrideCount > 0;
             var clearBtn = new Button(() => ClearBulkOverride(capturedSlots))
             {
                 text = EditorUIUtility.Cross,
                 tooltip = Localization.S("creator.bulk.clearGroup.tooltip")
             };
             clearBtn.AddToClassList("slot-clear-button");
-            clearBtn.SetEnabled(hasOverrides);
+            clearBtn.SetEnabled(overrideCount > 0);
             headerContent.Add(clearBtn);
-
-            // Click thumbnail/name to select material in Inspector + highlight in browser
-            var capturedMaterial = effectiveMaterial;
-            RegisterMaterialClickHandler(thumbnail, capturedMaterial, headerContent);
-            RegisterMaterialClickHandler(nameLabel, capturedMaterial, headerContent);
-
-            // Header D&D for bulk assignment
-            RegisterBulkHeaderDragAndDrop(headerContent, capturedSlots);
         }
 
         private void RegisterMaterialClickHandler(VisualElement element, Material material, VisualElement highlightRow = null)
@@ -643,79 +843,47 @@ namespace Kanameliser.ColorVariantGenerator
         // Drag & Drop
         // ────────────────────────────────────────────────
 
-        private static void RegisterSlotDragAndDrop(VisualElement row, ObjectField overrideField)
+        /// <summary>
+        /// Registers material drag-and-drop handlers on the given element.
+        /// On drop, the provided callback receives the dropped Material.
+        /// </summary>
+        private static void RegisterMaterialDragAndDrop(VisualElement element, Action<Material> onDrop)
         {
             // Use TrickleDown so the event fires even when the cursor is over a child
             // element (e.g. the ObjectField) that would otherwise stop propagation.
-            row.RegisterCallback<DragUpdatedEvent>(evt =>
+            element.RegisterCallback<DragUpdatedEvent>(evt =>
             {
                 if (DragAndDrop.objectReferences.Length > 0 && DragAndDrop.objectReferences[0] is Material)
                 {
                     DragAndDrop.visualMode = DragAndDropVisualMode.Link;
-                    row.AddToClassList("slot-row-drag-hover");
+                    element.AddToClassList("slot-row-drag-hover");
                 }
             }, TrickleDown.TrickleDown);
 
-            row.RegisterCallback<DragLeaveEvent>(evt =>
+            element.RegisterCallback<DragLeaveEvent>(evt =>
             {
-                // Only remove highlight when the cursor truly left the row bounds.
-                // DragLeaveEvent can also fire when the cursor moves to a child element
-                // within the row, in which case we want to keep the highlight.
-                if (!row.worldBound.Contains(evt.mousePosition))
+                // Only remove highlight when the cursor truly left the element bounds.
+                // DragLeaveEvent can also fire when the cursor moves to a child element,
+                // in which case we want to keep the highlight.
+                if (!element.worldBound.Contains(evt.mousePosition))
                 {
-                    row.RemoveFromClassList("slot-row-drag-hover");
+                    element.RemoveFromClassList("slot-row-drag-hover");
                 }
             });
 
-            row.RegisterCallback<DragPerformEvent>(evt =>
+            element.RegisterCallback<DragPerformEvent>(evt =>
             {
-                row.RemoveFromClassList("slot-row-drag-hover");
-                if (DragAndDrop.objectReferences.Length > 0 && DragAndDrop.objectReferences[0] is Material droppedMaterial)
-                {
-                    DragAndDrop.AcceptDrag();
-                    overrideField.value = droppedMaterial;
-                }
-            }, TrickleDown.TrickleDown);
-
-            row.RegisterCallback<DragExitedEvent>(evt =>
-            {
-                row.RemoveFromClassList("slot-row-drag-hover");
-            });
-        }
-
-        private void RegisterBulkHeaderDragAndDrop(VisualElement header, List<ScannedMaterialSlot> slots)
-        {
-            header.RegisterCallback<DragUpdatedEvent>(evt =>
-            {
-                if (DragAndDrop.objectReferences.Length > 0 && DragAndDrop.objectReferences[0] is Material)
-                {
-                    DragAndDrop.visualMode = DragAndDropVisualMode.Link;
-                    header.AddToClassList("slot-row-drag-hover");
-                }
-            }, TrickleDown.TrickleDown);
-
-            header.RegisterCallback<DragLeaveEvent>(evt =>
-            {
-                if (!header.worldBound.Contains(evt.mousePosition))
-                {
-                    header.RemoveFromClassList("slot-row-drag-hover");
-                }
-            });
-
-            var capturedSlots = slots;
-            header.RegisterCallback<DragPerformEvent>(evt =>
-            {
-                header.RemoveFromClassList("slot-row-drag-hover");
+                element.RemoveFromClassList("slot-row-drag-hover");
                 if (DragAndDrop.objectReferences.Length > 0 && DragAndDrop.objectReferences[0] is Material mat)
                 {
                     DragAndDrop.AcceptDrag();
-                    ApplyBulkOverride(capturedSlots, mat);
+                    onDrop(mat);
                 }
             }, TrickleDown.TrickleDown);
 
-            header.RegisterCallback<DragExitedEvent>(evt =>
+            element.RegisterCallback<DragExitedEvent>(evt =>
             {
-                header.RemoveFromClassList("slot-row-drag-hover");
+                element.RemoveFromClassList("slot-row-drag-hover");
             });
         }
 

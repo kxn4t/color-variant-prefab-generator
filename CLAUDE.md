@@ -74,7 +74,7 @@ Localization層 (Localization.cs — #if CVG_HAS_NDMF で条件分岐)
 - エラーハンドリング: try-catch + `Debug.LogError` / `Debug.LogWarning`
 - Undo対応: ユーザー操作は`Undo.RecordObject` / `Undo.SetCurrentGroupName`で対応
 - アセットパスはフォワードスラッシュに正規化
-- USSスタイルシートは対応するウィンドウファイルと同ディレクトリに配置
+- USSスタイルシートは対応するウィンドウファイルと同ディレクトリに配置。複数ウィンドウで共有するスタイルは `Editor/UI/Common.uss` に集約する
 - ドキュメント・CHANGELOGはバイリンガル（英語 + 日本語）
 - 日本語テキストでは英語技術用語（Renderer, Variant, Prefab等）はそのまま英語で記載し、無理にカタカナに変換しない
 - asmdefの`versionDefines`ではNuGetスタイルの範囲記法を使用する（例: `[1.11.0,2.0.0)`）。比較演算子（`>=1.11.0`）は不可

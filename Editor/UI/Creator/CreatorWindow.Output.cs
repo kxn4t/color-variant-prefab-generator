@@ -63,6 +63,9 @@ namespace Kanameliser.ColorVariantGenerator
             section.Add(EditorUIUtility.CreateNamingTemplateRow(
                 out _namingTemplateField, UpdateOutputPreview));
 
+            // Standard mode options (include Transform / component changes)
+            CreateStandardModeOptions(section);
+
             // Preview
             _outputPreviewLabel = new Label();
             _outputPreviewLabel.AddToClassList("output-preview-label");
@@ -274,11 +277,54 @@ namespace Kanameliser.ColorVariantGenerator
 
         /// <summary>
         /// Shows a confirmation dialog when no overrides are set.
+        /// In Standard mode, also considers structural changes.
         /// Returns true to proceed, false to cancel.
         /// </summary>
-        private static bool ConfirmEmptyOverrides(List<MaterialOverride> overridesList)
+        private bool ConfirmEmptyOverrides(List<MaterialOverride> overridesList)
         {
             if (overridesList.Count > 0) return true;
+
+            // In Standard mode, supported GameObject-level changes alone are a valid reason to generate
+            if (_creatorMode == CreatorMode.Standard && _structuralSummary != null && _structuralSummary.HasStructuralChanges)
+                return true;
+
+            if (_creatorMode == CreatorMode.Standard)
+            {
+                bool includePropertyChanges = EditorPrefs.GetBool(IncludePropertyChangesKey, false);
+
+                // Native path persists every override Unity recognizes — Transform /
+                // component property changes and component add/remove included.
+                // _structuralSummary tracks the filtered-path GameObject-level changes, but
+                // Transform/component property overrides are only represented by Unity's
+                // Prefab override list. Ask Unity directly for this native path.
+                // Second arg (includeDefaultOverride) is false so the prefab-instance root
+                // Transform's always-present default overrides don't count as a real change.
+                if (includePropertyChanges
+                    && _baseInstance != null
+                    && PrefabUtility.HasPrefabInstanceAnyOverrides(_baseInstance, false))
+                {
+                    return true;
+                }
+
+                // Component add/remove only: the filtered path (includePropertyChanges = false)
+                // does not transfer these, so the resulting Variant would silently match the base.
+                // Warn explicitly so the user can switch the toggle ON or cancel.
+                if (!includePropertyChanges
+                    && _structuralSummary != null && _structuralSummary.HasComponentChanges)
+                {
+                    return EditorUtility.DisplayDialog(
+                        Localization.S("common.warning"),
+                        Localization.S("creator.warning.componentChangesIgnored"),
+                        Localization.S("creator.generateAnyway"),
+                        Localization.S("common.cancel"));
+                }
+
+                return EditorUtility.DisplayDialog(
+                    Localization.S("common.warning"),
+                    Localization.S("creator.warning.noChanges"),
+                    Localization.S("creator.generateAnyway"),
+                    Localization.S("common.cancel"));
+            }
 
             return EditorUtility.DisplayDialog(
                 Localization.S("common.warning"),
@@ -289,8 +335,27 @@ namespace Kanameliser.ColorVariantGenerator
 
         private void ExecuteGeneration(GameObject parentPrefab, List<MaterialOverride> overridesList, string variantName, string outputPath, string namingTemplate)
         {
-            var result = PrefabVariantGenerator.GenerateVariant(
-                parentPrefab, overridesList, variantName, outputPath, namingTemplate);
+            GenerationResult result;
+
+            if (_creatorMode == CreatorMode.Standard)
+            {
+                var request = new StandardGenerationRequest
+                {
+                    basePrefabAsset = parentPrefab,
+                    hierarchyInstance = _baseInstance,
+                    materialOverrides = overridesList,
+                    options = BuildStandardModeOptions(),
+                    variantName = variantName,
+                    outputPath = outputPath,
+                    namingTemplate = namingTemplate
+                };
+                result = PrefabVariantGenerator.GenerateStandardVariant(request);
+            }
+            else
+            {
+                result = PrefabVariantGenerator.GenerateVariant(
+                    parentPrefab, overridesList, variantName, outputPath, namingTemplate);
+            }
 
             if (result.success)
             {
@@ -411,6 +476,39 @@ namespace Kanameliser.ColorVariantGenerator
             _parentDropdown.tooltip = Localization.S("creator.variantParent:tooltip");
             _parentDropdown.RegisterValueChangedCallback(OnVariantParentChanged);
             _parentDropdownContainer.Add(_parentDropdown);
+
+            ApplyVariantParentLockState();
+        }
+
+        /// <summary>
+        /// Locks the Variant Parent dropdown to the direct parent in Standard mode.
+        /// Neither Standard save path can retarget to a non-direct ancestor: the native
+        /// path is bound to the Hierarchy instance's existing prefab connection, and the
+        /// filtered path only captures diffs against the direct parent, so structural
+        /// changes from intermediate Variants would be silently dropped.
+        /// </summary>
+        internal void ApplyVariantParentLockState()
+        {
+            if (_parentDropdown == null) return;
+
+            bool lockToDirectParent = _creatorMode == CreatorMode.Standard;
+
+            if (lockToDirectParent)
+            {
+                if (_basePrefabAsset != null)
+                {
+                    _parentDropdown.SetValueWithoutNotify(_basePrefabAsset);
+                    _selectedVariantParent = _basePrefabAsset;
+                    UpdateOutputPreview();
+                }
+                _parentDropdown.SetEnabled(false);
+                _parentDropdown.tooltip = Localization.S("creator.variantParent:lockedTooltip");
+            }
+            else
+            {
+                _parentDropdown.SetEnabled(true);
+                _parentDropdown.tooltip = Localization.S("creator.variantParent:tooltip");
+            }
         }
 
         private static string FormatParentSelected(GameObject go)

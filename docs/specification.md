@@ -63,11 +63,31 @@ Color Variant Prefab Generatorのプロダクト仕様書。UIの構成と期待
 
 ## CV Creator — 詳細仕様
 
+### 生成モード（Standard / Strict）
+
+CV Creatorは2つの生成モードを持ち、Base Prefabフィールド横のOptionsメニュー (▼) の「Strict Mode (Material Only)」チェックボックスで切り替える。選択は`EditorPrefs`に保存される。デフォルトは **Standard** モード。
+
+| モード | 保存される内容 |
+|---|---|
+| **Standard**（デフォルト） | マテリアルオーバーライド＋Hierarchyインスタンス上で行ったGameObjectレベルの変更（GameObjectの追加・削除、および既存GameObject自体のプロパティ変更：rename・active state・Tag・Layer・StaticEditorFlags等）。オプションでHierarchyインスタンスをそのままPrefab Variantとして保存し、Unityが認識するoverride（Transform変更、コンポーネントのプロパティ変更、コンポーネントの追加・削除など）をすべて含めて保存できる |
+| **Strict** | マテリアルオーバーライドのみ。Hierarchyインスタンス上の構造変更は一切反映されない |
+
+**Standardモード固有のUI**:
+
+- 追加したGameObject配下のRendererは、スロットUIの末尾に追加オブジェクト用の専用セクションとして表示され、ベースPrefabには存在しないスロットにもオーバーライドを割り当てられる
+- Outputセクション内に「Include Transform/component changes」チェックボックスが表示され、有効時はHierarchyインスタンスをそのままPrefab Variantとして保存する経路に切り替わる（デフォルトOFF）
+- 構造変更のみで生成可能（マテリアルオーバーライド0件でも、構造変更があれば警告ダイアログなしで生成される）
+
+**Strictモード固有のUI**:
+
+- Base Prefabフィールドの右側に「Strict Mode」バッジを表示し、構造変更が無視されることを示す
+- Hierarchyインスタンス上で追加したGameObjectはスロットUIからフィルターされ、表示されない
+
 ### ベースPrefab指定
 
 **Hierarchyのインスタンス**（Projectアセットではなく）を指定する。Sceneプレビューのためにシーン上のインスタンスが必要。Projectアセットを指定した場合は警告を表示。
 
-**Optionsメニュー (▼)**: ObjectFieldの右に配置。「Import from Prefab」機能へのアクセスを提供。
+**Optionsメニュー (▼)**: ObjectFieldの右に配置。「Import from Prefab」機能と「Strict Mode (Material Only)」トグルへのアクセスを提供。
 
 ### マテリアルブラウザー
 
@@ -184,7 +204,7 @@ Base Prefab (Hierarchy Instance)
 
 ### 出力と生成
 
-- **Variant Parent**: ベースPrefabが多段Variantの場合に表示。祖先チェーンから親を選択可能。祖先以外を選択した場合、中間Variantの差分も含めてオーバーライドが自動再計算。`{BaseName}`は選択した親のPrefab名に追従。
+- **Variant Parent**: ベースPrefabが多段Variantの場合に表示。祖先チェーンから親を選択可能。直接親以外を選んだ場合、祖先に対する最終状態の差分としてマテリアルオーバーライドが自動再計算される。`{BaseName}`は選択した親のPrefab名に追従。**Standardモードでは直接親に固定される**（祖先に張り替えると中間Variantの構造差分が保持できないため）。
 - **Variant Name / Output Path / Naming Template / Output Preview**: 標準の出力設定
 - 成功時: 次アクション選択ダイアログ（Keep Current Overrides / Clear Overrides）
 

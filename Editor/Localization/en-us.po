@@ -208,6 +208,32 @@ msgstr "Keep Overrides"
 msgid "creator.error.generateFailed"
 msgstr "Failed to generate Prefab Variant:\n{0}"
 
+# ── Creator: Standard/Strict Mode ──
+
+msgid "creator.menu.modeStrict"
+msgstr "Strict Mode (Material Only)"
+
+msgid "creator.strictIndicator"
+msgstr "Strict Mode"
+
+msgid "creator.strictIndicator:tooltip"
+msgstr "Only material overrides will be saved. Structural changes on the Hierarchy instance are ignored. Change via Options menu."
+
+msgid "creator.standard.includePropertyChanges"
+msgstr "Include Transform/component changes"
+
+msgid "creator.standard.includePropertyChanges:tooltip"
+msgstr "When enabled, save the Hierarchy instance directly as a Prefab Variant so all overrides are saved. When disabled, only GameObject add/remove plus property changes on existing GameObjects themselves (rename, active state, tag, etc.) are saved (material changes are always applied)."
+
+msgid "creator.warning.noChanges"
+msgstr "No structural changes or material overrides detected. The generated Variant will be identical to the base Prefab. Continue?"
+
+msgid "creator.warning.componentChangesIgnored"
+msgstr "The Hierarchy instance has component additions/removals, but those are not transferred when 'Include Transform/component changes' is OFF. The generated Variant will be identical to the base Prefab. Continue, or cancel and turn the option ON?"
+
+msgid "creator.variantParent:lockedTooltip"
+msgstr "Locked to the direct parent in Standard mode. Switch to Strict mode to choose an ancestor."
+
 # ── Material Browser ──
 
 msgid "browser.title"

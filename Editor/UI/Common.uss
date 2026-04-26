@@ -1,0 +1,97 @@
+/* Common styles shared between Creator and Batch Generator windows */
+
+/* Language switcher */
+.language-switcher {
+    margin-bottom: 8px;
+}
+
+/* Main container */
+.main-container {
+    padding: 10px;
+    flex-grow: 1;
+}
+
+/* Section styles */
+.section-container {
+    margin-bottom: 10px;
+    padding: 10px;
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+}
+
+.section-label {
+    -unity-font-style: bold;
+    margin-bottom: 5px;
+    font-size: 13px;
+}
+
+/* Info box */
+.info-box {
+    padding: 6px 8px;
+    margin-bottom: 8px;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 11px;
+    background-color: rgba(100, 150, 255, 0.08);
+    border-radius: 3px;
+    white-space: normal;
+}
+
+/* Base prefab row */
+.base-prefab-row {
+    flex-direction: row;
+    align-items: center;
+}
+
+.base-prefab-field {
+    flex-grow: 1;
+    flex-shrink: 1;
+    min-width: 0;
+}
+
+/* Output section */
+.output-section {
+    margin-bottom: 10px;
+}
+
+.output-row {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.output-label {
+    width: 110px;
+    -unity-text-align: middle-left;
+}
+
+.output-field {
+    flex-grow: 1;
+    flex-shrink: 1;
+    min-width: 0;
+}
+
+.browser-browse-button {
+    width: 28px;
+    flex-shrink: 0;
+    margin-left: 2px;
+}
+
+.output-preview-label {
+    margin-top: 4px;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 11px;
+    white-space: normal;
+}
+
+/* Action buttons */
+.action-section {
+    flex-direction: row;
+    justify-content: flex-end;
+    margin-top: 5px;
+}
+
+.generate-button {
+    height: 30px;
+    min-width: 200px;
+    -unity-font-style: bold;
+}
