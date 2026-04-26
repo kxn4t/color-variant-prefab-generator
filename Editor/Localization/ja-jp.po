@@ -223,7 +223,7 @@ msgid "creator.standard.includePropertyChanges"
 msgstr "Transform/コンポーネントの変更を含める"
 
 msgid "creator.standard.includePropertyChanges:tooltip"
-msgstr "有効にするとHierarchyインスタンスをそのままPrefab Variantとして保存され、すべてのoverrideが保存されます。無効の場合、オブジェクトの追加・削除に加えて既存オブジェクト自体のプロパティ変更（リネーム・アクティブ状態・Tagなど）のみが保存されます（マテリアル変更は常に適用されます）"
+msgstr "有効にするとHierarchyインスタンスがそのままPrefab Variantとして保存され、すべてのoverrideが保存されます。無効の場合、オブジェクトの追加・削除に加えて既存オブジェクト自体のプロパティ変更（リネーム・アクティブ状態・Tagなど）のみが保存されます（マテリアル変更は常に適用されます）"
 
 msgid "creator.warning.noChanges"
 msgstr "構造変更もマテリアルオーバーライドもありません。生成されるVariantはベースPrefabと同一になります。続行しますか？"
