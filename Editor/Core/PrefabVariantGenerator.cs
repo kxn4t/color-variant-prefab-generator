@@ -114,25 +114,14 @@ namespace Kanameliser.ColorVariantGenerator
                     return result;
                 }
 
-                if (options.includePropertyChanges)
-                {
-                    // Native path: let Unity decide what is an override.
-                    // Save a duplicate of the hierarchy instance, then re-open the saved variant
-                    // through PrefabUtility's contents API to layer material overrides on top
-                    // without disturbing the user's scene state.
-                    GenerateStandardVariantNative(
-                        request.hierarchyInstance, materialOverrides, fullPath, result);
-                }
-                else
-                {
-                    // Filtered path: GameObject add/remove plus GameObject-level property
-                    // overrides on existing objects (m_Name / m_IsActive / m_Layer / m_TagString
-                    // / m_StaticEditorFlags etc.) are transferred. Transform & Component property
-                    // changes and component add/remove are intentionally excluded.
-                    GenerateStandardVariantFiltered(
-                        request.basePrefabAsset, request.hierarchyInstance,
-                        materialOverrides, fullPath, result);
-                }
+                // Always duplicate the hierarchy instance via the same editor-internal path
+                // Ctrl+D uses, then save the duplicate as a Variant. When the user opted out of
+                // Transform/Component property transfer (includePropertyChanges = false), revert
+                // those non-structural overrides on the duplicate before saving so they don't
+                // bleed into the asset. Material overrides are layered on top via the contents
+                // API in a second pass.
+                GenerateStandardVariantInternal(
+                    request.hierarchyInstance, options, materialOverrides, fullPath, result);
             }
             catch (Exception ex)
             {
@@ -145,39 +134,24 @@ namespace Kanameliser.ColorVariantGenerator
         }
 
         /// <summary>
-        /// Native Standard mode path: duplicates the hierarchy instance while preserving its
-        /// prefab connection, saves the duplicate via Unity's SaveAsPrefabAsset (which produces
-        /// a Variant of the same base Prefab), then layers material overrides on the saved
-        /// Variant via the PrefabUtility contents API.
+        /// Unified Standard mode path: duplicates the hierarchy instance while preserving its
+        /// prefab connection (so nested Prefab links and structural overrides inside them are
+        /// retained recursively), optionally reverts non-structural overrides on the duplicate
+        /// when <see cref="StandardModeOptions.includePropertyChanges"/> is false, then saves the
+        /// duplicate via Unity's SaveAsPrefabAsset and layers material overrides on top via the
+        /// PrefabUtility contents API.
         /// The user's hierarchy instance is never passed to SaveAsPrefabAsset, because that
         /// call rebinds the source GameObject's prefab connection to the newly written asset
         /// and would silently mutate the user's scene state.
         /// </summary>
-        private static void GenerateStandardVariantNative(
+        private static void GenerateStandardVariantInternal(
             GameObject hierarchyInstance,
+            StandardModeOptions options,
             List<MaterialOverride> materialOverrides,
             string fullPath,
             GenerationResult result)
         {
-            // Object.Instantiate on a prefab instance loses the prefab connection, so
-            // SaveAsPrefabAsset on that clone would produce a plain Prefab instead of a Variant.
-            // Use the same editor-internal path that Ctrl+D in the Hierarchy uses — it preserves
-            // the prefab connection on the duplicate, so the saved result becomes a Variant of
-            // the base. Selection is restored afterwards to avoid disturbing the user's state.
-            var previousSelection = Selection.objects;
-            GameObject duplicate = null;
-            try
-            {
-                Selection.objects = new Object[] { hierarchyInstance };
-                Selection.activeGameObject = hierarchyInstance;
-                Unsupported.DuplicateGameObjectsUsingPasteboard(); // TODO: より良い実装方法があれば変えたい
-                duplicate = Selection.activeGameObject;
-            }
-            finally
-            {
-                Selection.objects = previousSelection;
-            }
-
+            var duplicate = DuplicateInstancePreservingPrefabConnection(hierarchyInstance);
             if (duplicate == null || duplicate == hierarchyInstance)
             {
                 result.errorMessage =
@@ -187,6 +161,16 @@ namespace Kanameliser.ColorVariantGenerator
 
             try
             {
+                if (!options.includePropertyChanges)
+                {
+                    // Strip Transform/Component property overrides plus added/removed components
+                    // on existing objects, while leaving added GameObject subtrees (and their
+                    // internal nested-Prefab structural overrides) intact. GameObject-level
+                    // overrides (m_Name / m_IsActive / m_TagString / m_Layer / m_StaticEditorFlags)
+                    // are also preserved.
+                    PrefabModificationHelper.RevertNonStructuralOverrides(duplicate);
+                }
+
                 PrefabUtility.SaveAsPrefabAsset(duplicate, fullPath, out bool firstSaveSuccess);
                 if (!firstSaveSuccess)
                 {
@@ -205,7 +189,7 @@ namespace Kanameliser.ColorVariantGenerator
                     {
                         Debug.Log(
                             $"[Color Variant Generator] Generated Prefab Variant: '{fullPath}' " +
-                            $"({appliedCount} material overrides applied; native mode)");
+                            $"({appliedCount} material overrides applied)");
                     }
                     else
                     {
@@ -225,48 +209,25 @@ namespace Kanameliser.ColorVariantGenerator
         }
 
         /// <summary>
-        /// Filtered Standard mode path: instantiates the base prefab fresh and selectively
-        /// transfers GameObject add/remove plus GameObject-level property overrides on existing
-        /// objects (m_Name, m_IsActive, m_Layer, m_TagString, m_StaticEditorFlags, etc.).
-        /// Transform / Component property changes and component add/remove are excluded by design;
-        /// material slot modifications are excluded here and re-applied via the material override system.
+        /// Duplicates a Prefab instance via the same editor-internal path Ctrl+D uses, which
+        /// preserves the instance's prefab connection (including nested Prefab links and all
+        /// structural overrides). Object.Instantiate would lose the connection, producing a
+        /// plain Prefab when later saved via SaveAsPrefabAsset. Selection state is restored
+        /// after the duplication so the user's editor state is not disturbed.
         /// </summary>
-        private static void GenerateStandardVariantFiltered(
-            GameObject basePrefabAsset,
-            GameObject hierarchyInstance,
-            List<MaterialOverride> materialOverrides,
-            string fullPath,
-            GenerationResult result)
+        private static GameObject DuplicateInstancePreservingPrefabConnection(GameObject hierarchyInstance)
         {
-            var instance = PrefabUtility.InstantiatePrefab(basePrefabAsset) as GameObject;
-            if (instance == null)
-            {
-                result.errorMessage = "Failed to instantiate base prefab.";
-                return;
-            }
-
+            var previousSelection = Selection.objects;
             try
             {
-                // Step 1: Apply removed GameObjects (destroy before copying to avoid conflicts)
-                PrefabModificationHelper.ApplyRemovedGameObjects(hierarchyInstance, instance);
-
-                // Step 2: Apply filtered property modifications. With includePropertyChanges = false
-                // the helper passes through GameObject-level overrides (m_Name, m_IsActive, m_Layer,
-                // m_TagString, m_StaticEditorFlags, etc.) and skips Transform/Component property changes.
-                var filteredMods = PrefabModificationHelper.ExtractFilteredModifications(
-                    hierarchyInstance, new StandardModeOptions { includePropertyChanges = false });
-                PrefabModificationHelper.ApplyModifications(instance, filteredMods);
-
-                // Step 3: Copy added GameObjects with all their state
-                PrefabModificationHelper.CopyAddedGameObjects(hierarchyInstance, instance);
-
-                // Step 4: Apply material overrides (same as Strict mode)
-                int appliedCount = ApplyMaterialOverrides(instance, materialOverrides);
-                SaveAsVariant(instance, fullPath, appliedCount, result);
+                Selection.objects = new Object[] { hierarchyInstance };
+                Selection.activeGameObject = hierarchyInstance;
+                Unsupported.DuplicateGameObjectsUsingPasteboard(); // TODO: より良い実装方法があれば変えたい
+                return Selection.activeGameObject;
             }
             finally
             {
-                Object.DestroyImmediate(instance);
+                Selection.objects = previousSelection;
             }
         }
 

@@ -98,33 +98,42 @@ Hierarchyインスタンス
     ▼
 PrefabVariantGenerator.GenerateStandardVariant(StandardGenerationRequest)
     │
-    ├─ includePropertyChanges = false  →  GenerateStandardVariantFiltered()
-    │     ├─ Step 1: ApplyRemovedGameObjects()   削除の転写
-    │     ├─ Step 2: ApplyModifications()        GameObject自体のプロパティ変更を転写
-    │     │                                       （rename / active / tag / layer /
-    │     │                                        staticFlags 等。Transform・Component
-    │     │                                        プロパティ変更は除外）
-    │     ├─ Step 3: CopyAddedGameObjects()      追加の転写
-    │     └─ Step 4: マテリアルオーバーライド適用
-    │
-    └─ includePropertyChanges = true   →  GenerateStandardVariantNative()
-          ├─ Step 1: Unsupported.DuplicateGameObjectsUsingPasteboard() で複製
-          │            → Ctrl+D と同じ経路でPrefab接続を維持したまま複製
-          │              （Object.InstantiateだとPrefab接続が切れ、保存結果が
-          │               Variantではなく通常のPrefabになるため不可）
-          ├─ Step 2: PrefabUtility.SaveAsPrefabAsset(duplicate, path)
-          │            → Unityが認識するoverride全部を保存
-          ├─ Step 3: PrefabUtility.LoadPrefabContents(path)
-          ├─ Step 4: マテリアルオーバーライド適用
-          ├─ Step 5: PrefabUtility.SaveAsPrefabAsset(contents, path)
-          ├─ Step 6: PrefabUtility.UnloadPrefabContents(contents)
-          └─ Step 7: Object.DestroyImmediate(duplicate)
+    ▼
+GenerateStandardVariantInternal()
+    ├─ Step 1: DuplicateInstancePreservingPrefabConnection()
+    │            → Unsupported.DuplicateGameObjectsUsingPasteboard()
+    │            → Ctrl+D と同じ経路でPrefab接続を維持したまま複製
+    │              （Object.InstantiateだとPrefab接続が切れ、保存結果が
+    │               Variantではなく通常のPrefabになるため不可。nested Prefab
+    │               配下の構造override（追加・削除component / 追加・削除child）も
+    │               この複製で再帰的に保持される）
+    ├─ Step 2: includePropertyChanges == false のみ
+    │            → PrefabModificationHelper.RevertNonStructuralOverrides(duplicate)
+    │              ├─ RevertAddedComponent      既存GO上の追加componentを除去
+    │              ├─ RemovedComponent.Revert   既存GOから削除されたcomponentを再追加
+    │              ├─ RevertObjectOverride      既存GO上のTransform/Componentの
+    │                                            プロパティoverrideを一掃
+    │              └─ no-op GameObject mod の trim
+    │                                            既存GO上の「変更→ベース値に戻し」で残る
+    │                                            no-op PropertyModificationを除去
+    │              ※追加subtreeはRevert対象外。GameObject自体のoverride
+    │               （m_Name / m_IsActive / m_TagString / m_Layer /
+    │                m_StaticEditorFlags 等）はベース値と異なる場合のみ保持される
+    ├─ Step 3: PrefabUtility.SaveAsPrefabAsset(duplicate, path)
+    │            → Unityが認識するoverride（Step 2でRevertされなかった分）を保存
+    ├─ Step 4: PrefabUtility.LoadPrefabContents(path)
+    ├─ Step 5: マテリアルオーバーライド適用（contents上）
+    ├─ Step 6: PrefabUtility.SaveAsPrefabAsset(contents, path)
+    ├─ Step 7: PrefabUtility.UnloadPrefabContents(contents)
+    └─ Step 8: Object.DestroyImmediate(duplicate)
     │
     ▼
 Prefab Variantファイル (.prefab)
 ```
 
-Filteredパスのstep順序には意味がある: `ApplyModifications`は`SetPropertyModifications`で修正リストを置換するため、先に`CopyAddedGameObjects`を行うと追加オブジェクトが破棄される。そのため削除 → プロパティ → 追加 → マテリアルの順で処理する。Nativeパスは必ずHierarchyインスタンスを複製してから保存する: `PrefabUtility.SaveAsPrefabAsset` は引数のGameObjectのPrefab接続を新アセット側へ張り替える副作用があり、シーン上のユーザー操作対象を直接渡すと元のbase Prefabへの接続が失われるため。複製には`Unsupported.DuplicateGameObjectsUsingPasteboard()`を使う — `Object.Instantiate`はPrefabインスタンス上でPrefab接続を失うため、保存結果がVariantではなく通常のPrefabになってしまう。この関数はCtrl+Dと同じEditor内部経路でPrefab接続を保ったまま複製する。
+Standardモードは常にHierarchyインスタンスを複製してから保存する。`PrefabUtility.SaveAsPrefabAsset` は引数のGameObjectのPrefab接続を新アセット側へ張り替える副作用があり、シーン上のユーザー操作対象を直接渡すと元のbase Prefabへの接続が失われるため。複製には`Unsupported.DuplicateGameObjectsUsingPasteboard()`を使う — `Object.Instantiate`はPrefabインスタンス上でPrefab接続を失うため、保存結果がVariantではなく通常のPrefabになってしまう。この関数はCtrl+Dと同じEditor内部経路でPrefab接続を保ったまま複製し、nested Prefab内部の構造overrideまで再帰的に維持する。
+
+`includePropertyChanges = false` のときの「Transform/Componentプロパティ変更とcomponent追加・削除を除外する」挙動は、複製後にcomponent単位で `PrefabUtility.RevertObjectOverride` を呼ぶことで実現する。GameObject単位のRevertは使わない（`m_Name` / `m_IsActive` / `m_TagString` / `m_Layer` / `m_StaticEditorFlags` 等を一括で消してしまうため）。`m_Materials` overrideもこのRevertでいったん消えるが、後続のStep 5でユーザー指定のマテリアルoverrideがcontents経由で書き直されるので最終`.prefab`には反映される。
 
 ### CV Creator — Prefabからのインポート
 
@@ -174,12 +183,13 @@ PrefabScanner.ScanRenderers()       PrefabScanner.ScanRenderers()
 
 ## 設計上の注意点
 
-- **Prefab Variant生成時、プレビューインスタンスは使用しない**: 常に`PrefabUtility.InstantiatePrefab()`で新規インスタンスを生成し、構造変更（Standardモードのみ）とマテリアルオーバーライドを適用して保存する。プレビュー中にHierarchy上で意図せず変更された他のプロパティ（Transform位置など）がVariantに混入することを防ぐため。Standardモードでも構造変更は`PrefabModificationHelper`経由で選択的に転写し、プレビューインスタンス自体は保存しない。
-- **Standard / Strictモード**: `CreatorMode`列挙型で管理。`EditorPrefs`に永続化。Strictモードは従来の挙動（マテリアルオーバーライドのみ）を維持するための退避ルート。Standardモードは`StandardModeOptions.includePropertyChanges`で2経路に分岐する:
-  - **OFF（デフォルト）**: ベースPrefabを新規インスタンス化し、`PrefabModificationHelper`経由で「GameObjectの追加・削除」と「既存GameObject自体のプロパティ変更（`m_Name` / `m_IsActive` / `m_Layer` / `m_TagString` / `m_StaticEditorFlags` 等）」を選択的に転写する影響範囲の限定されたパス。Transform・Componentのプロパティ変更とコンポーネントの追加・削除は意図的に除外する
-  - **ON**: Hierarchyインスタンスを `Unsupported.DuplicateGameObjectsUsingPasteboard()`（Ctrl+Dと同じ内部経路）で複製してから `PrefabUtility.SaveAsPrefabAsset` で保存し、Unityが認識するoverride全部（Transform・コンポーネントのプロパティ・コンポーネント追加削除など）を取り込む。`Object.Instantiate` はPrefabインスタンスに対してPrefab接続を失うため、保存結果がVariantではなく通常のPrefabになってしまい不可。マテリアルoverrideは `PrefabUtility.LoadPrefabContents` で再オープンして上から適用する。複製ステップは必須で、Hierarchyインスタンスを直接渡すと元のbase Prefabへの接続が新Variantへ張り替えられてしまうのを防ぐ
-- **`ApplyModifications` はベースPrefab経由でマッピング**: `PropertyModification.target` はシーン上のインスタンスではなく *ベースPrefabアセット側のオブジェクト* を指す。そのため `BuildBaseAssetToTargetMapping` で `GetCorrespondingObjectFromSource` を辿って「ベースアセット → 新規targetインスタンス」の対応表を作り、mod.targetをtargetインスタンス側のオブジェクトにremapする。`CopyAddedGameObjects` の `FindCorrespondingTransform` も同じ対応方式を使い、リネーム済み祖先の下に追加されたGameObjectでも親を正しく見つけられる。
-- **override値は`SerializedObject`で直接書く**: `SetPropertyModifications` はoverrideリストを更新するだけでGameObjectの実値（`.name` / `.activeSelf` / `.tag`）は変更しない。後続の `SaveAsPrefabAsset` はベースとの差分からoverrideを再計算するため、実値がベースのままだと空のVariantになる。このため `ApplyModifications` は `SerializedObject.ApplyModifiedPropertiesWithoutUndo` で値自体を書き込み、`m_IsActive` については `GameObject.SetActive` も併用してランタイム状態を同期する。
-- **`ValueDiffersFromBase` は `mod.value` 文字列とベースを比較**: `PropertyModification.target` はベースアセット側を指すので、`SerializedObject(mod.target)` を読んでもユーザーのoverride値は得られない。ユーザーの値は `mod.value` 文字列にしか存在しないため、ベースアセットの現在値と文字列を型ごとに比較して「リバート済みのno-op override」を除外する。
+- **Prefab Variant生成時、プレビューインスタンスは使用しない**: StrictモードとCV Creator/Batch Generatorのマテリアルのみ生成では `PrefabUtility.InstantiatePrefab()` で新規インスタンスを生成してマテリアルオーバーライドを適用して保存する。プレビュー中にHierarchy上で意図せず変更された他のプロパティ（Transform位置など）がVariantに混入することを防ぐため。Standardモードでは構造変更とプロパティoverrideをHierarchyインスタンスから取り込む必要があるため、`Unsupported.DuplicateGameObjectsUsingPasteboard()` で複製した上で必要に応じてoverrideをRevertする方式を採用する（プレビューインスタンス自体を `SaveAsPrefabAsset` に渡さない点は同じ）。
+- **Standard / Strictモード**: `CreatorMode`列挙型で管理。`EditorPrefs`に永続化。Strictモードは従来の挙動（マテリアルオーバーライドのみ）を維持するための退避ルート。Standardモードは常にHierarchyインスタンスを複製した上で `StandardModeOptions.includePropertyChanges` に応じてRevertの有無が変わる:
+  - **OFF（デフォルト）**: 複製後に `PrefabModificationHelper.RevertNonStructuralOverrides` で「既存GameObject上のTransform/Componentプロパティoverride」「既存GameObject上の追加・削除component」をRevert。「GameObjectの追加・削除」「既存GameObject自体のプロパティ変更（`m_Name` / `m_IsActive` / `m_Layer` / `m_TagString` / `m_StaticEditorFlags` 等）」「追加subtree内部の構造override（nested Prefab配下の追加・削除component / 追加・削除childを含む）」は保持される
+  - **ON**: 複製後にRevertを行わず、Unityが認識するoverride全部（Transform・コンポーネントのプロパティ・コンポーネント追加削除など）をそのまま保存する
+  - 複製には `Unsupported.DuplicateGameObjectsUsingPasteboard()` を使う（Ctrl+Dと同じ内部経路）。`Object.Instantiate` はPrefabインスタンスに対してPrefab接続を失うため、保存結果がVariantではなく通常のPrefabになってしまい不可。Hierarchyインスタンスを直接 `SaveAsPrefabAsset` に渡すと元のbase Prefabへの接続が新Variantへ張り替えられてしまうため、複製ステップは必須。マテリアルoverrideは `PrefabUtility.LoadPrefabContents` で再オープンして上から適用する
+- **GameObject単位のRevertは使わない**: `RevertNonStructuralOverrides` のStep 3（既存オブジェクト上のプロパティoverrideのRevert）はcomponent単位で `PrefabUtility.RevertObjectOverride` を呼ぶ。GameObject単位で呼ぶと `m_Name` / `m_IsActive` / `m_TagString` / `m_Layer` / `m_StaticEditorFlags` といった保持したいoverrideまで一括で消えてしまうため。component単位のRevertは `m_Materials` も含めてそのcomponentに乗る全プロパティを一掃するが、後続のマテリアルoverride適用フェーズでcontents上で書き直されるので最終的な `.prefab` には影響しない。
+- **追加subtreeはRevert対象外**: `BuildAddedInstanceIds` で `PrefabUtility.GetAddedGameObjects` 配下のinstance IDを集め、`IsAddedObject` で「追加subtreeに属するか」を判定して、追加subtree配下のcomponentは `RevertObjectOverride` / `RevertAddedComponent` の対象から除外する。これによりnested Prefabの内部構造を含む追加subtreeはoverrideがそのまま保存される。
+- **`ValueDiffersFromBase` は `mod.value` 文字列とベースを比較**: `PropertyModification.target` はベースアセット側を指すので、`SerializedObject(mod.target)` を読んでもユーザーのoverride値は得られない。ユーザーの値は `mod.value` 文字列にしか存在しないため、ベースアセットの現在値と文字列を型ごとに比較して「リバート済みのno-op override」を `AnalyzeStructuralChanges` のサマリから除外する。
 - **`CompareRenderers`は差分のみ返す**: マテリアルが同じスロットは結果に含まれない。未マッチのソーススロットは`targetSlot = null`で含まれる（ただしベースマテリアルが`null`のスロットは除外）。
 - **`MatchRenderers()`と`AnalyzeVariant()`**: 公開APIとして存在するが、組み込みUIからは`CompareRenderers`と直接比較方式に移行済み。

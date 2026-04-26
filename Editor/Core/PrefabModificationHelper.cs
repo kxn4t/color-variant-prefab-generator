@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
@@ -7,8 +6,10 @@ using Object = UnityEngine.Object;
 namespace Kanameliser.ColorVariantGenerator
 {
     /// <summary>
-    /// Detects, filters, and transfers Prefab instance modifications.
-    /// Used by Standard mode to preserve structural changes when generating Prefab Variants.
+    /// Analyzes Prefab instance modifications for Standard mode.
+    /// Provides a structural diff used by the UI for empty-change confirmation, and a
+    /// post-duplication trimmer used by the generator when the user opts out of Transform /
+    /// component property transfer.
     /// </summary>
     internal static class PrefabModificationHelper
     {
@@ -134,84 +135,111 @@ namespace Kanameliser.ColorVariantGenerator
         }
 
         /// <summary>
-        /// Extracts filtered PropertyModifications from the hierarchy instance.
-        /// Added GameObjects are transferred wholesale. For existing objects, filtering is applied
-        /// based on the provided options.
+        /// Strips non-structural overrides from a freshly duplicated Prefab instance so that
+        /// only structural changes (added / removed GameObjects, GameObject-level property
+        /// overrides like rename / active state / tag / layer / static flags) survive into the
+        /// saved Variant. Used by the generator when the user opted out of Transform / component
+        /// property transfer.
         /// </summary>
         /// <remarks>
-        /// Material modifications (m_Materials) are always excluded — they are handled
-        /// separately by the material override mechanism.
+        /// Reverts performed:
+        ///   - Added components on existing GameObjects (added subtrees are exempt).
+        ///   - Removed components on existing GameObjects.
+        ///   - Property overrides on Transforms / components belonging to existing GameObjects.
+        ///     m_Materials is included in this revert; the generator re-applies user-selected
+        ///     material overrides afterwards through the contents API.
+        ///   - GameObject-level "no-op" PropertyModification entries (override value equals base).
+        ///     Unity retains these entries even after the user toggles a value back to the base,
+        ///     and SaveAsPrefabAsset on a Pasteboard duplicate can persist them on the saved
+        ///     Variant; trim them explicitly to keep the asset clean.
+        /// Preserved:
+        ///   - All overrides inside added GameObject subtrees, including nested Prefab structural
+        ///     overrides (which is the key reason we duplicate instead of rebuilding from base).
+        ///   - GameObject-level overrides (m_Name / m_IsActive / m_TagString / m_Layer /
+        ///     m_StaticEditorFlags) on existing GameObjects whose value differs from the base.
         /// </remarks>
-        public static PropertyModification[] ExtractFilteredModifications(
-            GameObject hierarchyInstance, StandardModeOptions options)
+        public static void RevertNonStructuralOverrides(GameObject duplicate)
         {
-            if (hierarchyInstance == null) return Array.Empty<PropertyModification>();
+            if (duplicate == null) return;
 
-            var allModifications = PrefabUtility.GetPropertyModifications(hierarchyInstance);
-            if (allModifications == null) return Array.Empty<PropertyModification>();
+            var addedInstanceIds = BuildAddedInstanceIds(duplicate);
 
-            var addedInstanceIds = BuildAddedInstanceIds(hierarchyInstance);
-            var filtered = new List<PropertyModification>();
-
-            foreach (var mod in allModifications)
+            // 1) Revert components added to existing GameObjects.
+            //    GetAddedComponents does not include components that live inside an added
+            //    GameObject subtree (those are part of the added subtree, not "added on the
+            //    base"), but the addedInstanceIds guard is kept as a defensive backstop.
+            var addedComponents = PrefabUtility.GetAddedComponents(duplicate);
+            foreach (var addedComp in addedComponents)
             {
-                if (mod.target == null) continue;
-
-                if (ShouldIncludeModification(mod, hierarchyInstance, addedInstanceIds, options))
-                    filtered.Add(mod);
+                var comp = addedComp.instanceComponent;
+                if (comp == null) continue;
+                if (IsAddedObject(comp, addedInstanceIds)) continue;
+                PrefabUtility.RevertAddedComponent(comp, InteractionMode.AutomatedAction);
             }
 
-            return filtered.ToArray();
+            // 2) Re-add components removed from existing GameObjects.
+            var removedComponents = PrefabUtility.GetRemovedComponents(duplicate);
+            foreach (var removedComp in removedComponents)
+            {
+                if (removedComp.assetComponent == null) continue;
+                var host = removedComp.containingInstanceGameObject;
+                if (host == null) continue;
+                if (IsAddedObject(host, addedInstanceIds)) continue;
+                removedComp.Revert(InteractionMode.AutomatedAction);
+            }
+
+            // 3) Revert property overrides on Transforms / components of existing GameObjects.
+            //    GameObject-level overrides are deliberately preserved (m_Name, m_IsActive,
+            //    m_TagString, m_Layer, m_StaticEditorFlags etc. all live on the GameObject
+            //    object itself, not on a component), so this loop skips GameObject targets.
+            var objectOverrides = PrefabUtility.GetObjectOverrides(duplicate, true);
+            foreach (var objectOverride in objectOverrides)
+            {
+                var target = objectOverride.instanceObject;
+                if (target == null) continue;
+                if (target is GameObject) continue;
+                if (!(target is Component component)) continue;
+                if (IsAddedObject(component, addedInstanceIds)) continue;
+                PrefabUtility.RevertObjectOverride(target, InteractionMode.AutomatedAction);
+            }
+
+            // 4) Drop GameObject-level "no-op" property modifications whose override value
+            //    matches the base. Unity keeps these entries in the modification list even
+            //    after the user toggles the value back to the base value (e.g. rename then
+            //    rename back), and SaveAsPrefabAsset on a Pasteboard duplicate may persist
+            //    them as override rows on the saved Variant. Trim them explicitly so the
+            //    generated asset reflects only meaningful changes.
+            TrimNoOpGameObjectModifications(duplicate, addedInstanceIds);
         }
 
         /// <summary>
-        /// Determines whether a single PropertyModification should be included in the filtered output.
+        /// Rewrites the duplicate's PropertyModification list, removing entries on
+        /// GameObject targets (existing, non-added) whose override value already equals the
+        /// base asset's current value. Modifications on components or on objects inside an
+        /// added subtree are passed through untouched (the former are reverted by Step 3,
+        /// the latter must be preserved wholesale).
         /// </summary>
-        private static bool ShouldIncludeModification(
-            PropertyModification mod,
-            GameObject hierarchyInstance,
-            HashSet<int> addedInstanceIds,
-            StandardModeOptions options)
+        private static void TrimNoOpGameObjectModifications(GameObject duplicate, HashSet<int> addedInstanceIds)
         {
-            // Always exclude material modifications (handled by material override system)
-            if (mod.propertyPath.StartsWith("m_Materials"))
-                return false;
+            var modifications = PrefabUtility.GetPropertyModifications(duplicate);
+            if (modifications == null || modifications.Length == 0) return;
 
-            // Added GameObjects: always include all modifications
-            if (IsAddedObject(mod.target, addedInstanceIds))
-                return true;
+            var kept = new List<PropertyModification>(modifications.Length);
+            bool anyDropped = false;
+            foreach (var mod in modifications)
+            {
+                if (mod.target is GameObject
+                    && !IsAddedObject(mod.target, addedInstanceIds)
+                    && !ValueDiffersFromBase(mod))
+                {
+                    anyDropped = true;
+                    continue;
+                }
+                kept.Add(mod);
+            }
 
-            // Structural rename: include only when the current value actually differs from base.
-            // Unity keeps PropertyModification entries even after the user toggles a value back to
-            // the base value ("no-op override"), which would otherwise produce meaningless
-            // override rows on the generated Variant.
-            if (mod.target is GameObject && mod.propertyPath == "m_Name")
-                return ValueDiffersFromBase(mod);
-
-            // Active state toggle: same no-op filtering as rename.
-            if (mod.target is GameObject && mod.propertyPath == "m_IsActive")
-                return ValueDiffersFromBase(mod);
-
-            // Tag change: frequently used in practice (e.g. marking MA bone proxies, etc.),
-            // so it's called out alongside rename / active state rather than buried in the
-            // generic GameObject-level catch-all below.
-            if (mod.target is GameObject && mod.propertyPath == "m_TagString")
-                return ValueDiffersFromBase(mod);
-
-            // Skip root Transform — placing a prefab in the scene always creates
-            // position/rotation overrides on the root, which are not meaningful.
-            if (mod.target is Transform t && t == hierarchyInstance.transform)
-                return false;
-
-            // Conditionally include: Transform and component property changes.
-            // No base-value filtering here — when the user opts into
-            // includePropertyChanges, honor Unity's override list as-is.
-            if (mod.target is Transform || mod.target is Component)
-                return options.includePropertyChanges;
-
-            // Other GameObject-level overrides (m_Layer, m_StaticEditorFlags, etc.):
-            // include only when the current value actually differs from base.
-            return ValueDiffersFromBase(mod);
+            if (anyDropped)
+                PrefabUtility.SetPropertyModifications(duplicate, kept.ToArray());
         }
 
         /// <summary>
@@ -274,345 +302,6 @@ namespace Kanameliser.ColorVariantGenerator
             }
         }
 
-        /// <summary>
-        /// Copies all added GameObjects from the source instance to the target instance,
-        /// preserving hierarchy structure and all component data.
-        /// </summary>
-        /// <remarks>
-        /// After cloning, runs a reference-remap pass so that ObjectReference fields on
-        /// added components that point into the source hierarchy instance (either into
-        /// another added root or into the base-prefab portion of the source) are rewritten
-        /// to the corresponding target-side objects. Without this, those references would
-        /// be dropped as missing by SaveAsPrefabAsset.
-        /// </remarks>
-        public static void CopyAddedGameObjects(GameObject sourceInstance, GameObject targetInstance)
-        {
-            var addedObjects = PrefabUtility.GetAddedGameObjects(sourceInstance);
-
-            // Collected across every added root so that cross-subtree references between
-            // separate added roots (each cloned by its own Instantiate call) can be fixed
-            // up after all clones exist.
-            var sourceToClone = new Dictionary<Object, Object>();
-
-            foreach (var added in addedObjects)
-            {
-                var sourceGO = added.instanceGameObject;
-                if (sourceGO == null) continue;
-
-                // Find the corresponding parent in the target instance
-                Transform targetParent = FindCorrespondingTransform(
-                    sourceInstance.transform, targetInstance.transform, sourceGO.transform.parent);
-
-                if (targetParent == null)
-                {
-                    Debug.LogWarning(
-                        $"[Color Variant Generator] Could not find parent for added GameObject '{sourceGO.name}' in target instance. Skipping.");
-                    continue;
-                }
-
-                // Copy the added GameObject, preserving Prefab links if it's a nested Prefab instance
-                GameObject copy;
-                var nestedPrefabAsset = PrefabUtility.GetCorrespondingObjectFromSource(sourceGO);
-                if (nestedPrefabAsset != null && PrefabUtility.IsPartOfPrefabAsset(nestedPrefabAsset))
-                {
-                    // Nested Prefab: use InstantiatePrefab to maintain the Prefab link,
-                    // then apply property overrides from the source instance
-                    copy = PrefabUtility.InstantiatePrefab(nestedPrefabAsset, targetParent) as GameObject;
-                    if (copy != null)
-                    {
-                        // Transfer property overrides from source to the new instance
-                        var sourceMods = PrefabUtility.GetPropertyModifications(sourceGO);
-                        if (sourceMods != null && sourceMods.Length > 0)
-                        {
-                            PrefabUtility.SetPropertyModifications(copy, sourceMods);
-                        }
-
-                        // Copy transform values
-                        copy.transform.localPosition = sourceGO.transform.localPosition;
-                        copy.transform.localRotation = sourceGO.transform.localRotation;
-                        copy.transform.localScale = sourceGO.transform.localScale;
-                    }
-                }
-                else
-                {
-                    // Plain GameObject (not a Prefab instance): deep copy with Instantiate
-                    copy = Object.Instantiate(sourceGO, targetParent);
-                }
-
-                if (copy == null) continue;
-                copy.name = sourceGO.name; // Remove "(Clone)" suffix
-                copy.transform.SetSiblingIndex(sourceGO.transform.GetSiblingIndex());
-
-                CollectSourceToCloneMapping(sourceGO.transform, copy.transform, sourceToClone);
-            }
-
-            if (sourceToClone.Count > 0)
-                RemapClonedReferences(sourceToClone, sourceInstance, targetInstance);
-        }
-
-        /// <summary>
-        /// Populates a map from source-side objects (GameObject / Transform / Components) to
-        /// their clones on the target side by traversing both subtrees in lockstep.
-        /// Relies on Object.Instantiate / InstantiatePrefab preserving component order and
-        /// child order, which holds on prefab instances (added components appear at the end,
-        /// so positional pairing stays valid up to the shorter length).
-        /// </summary>
-        private static void CollectSourceToCloneMapping(
-            Transform source, Transform clone, Dictionary<Object, Object> map)
-        {
-            if (source == null || clone == null) return;
-
-            map[source.gameObject] = clone.gameObject;
-            map[source] = clone;
-
-            var sourceComponents = source.GetComponents<Component>();
-            var cloneComponents = clone.GetComponents<Component>();
-            int componentCount = Math.Min(sourceComponents.Length, cloneComponents.Length);
-            for (int i = 0; i < componentCount; i++)
-            {
-                var sc = sourceComponents[i];
-                var cc = cloneComponents[i];
-                if (sc == null || cc == null) continue;
-                if (sc is Transform) continue; // already mapped via source→clone above
-                if (!map.ContainsKey(sc))
-                    map[sc] = cc;
-            }
-
-            int childCount = Math.Min(source.childCount, clone.childCount);
-            for (int i = 0; i < childCount; i++)
-            {
-                CollectSourceToCloneMapping(source.GetChild(i), clone.GetChild(i), map);
-            }
-        }
-
-        /// <summary>
-        /// Rewrites ObjectReference properties on cloned components whose current value
-        /// points into the source hierarchy instance. Two cases are handled:
-        ///   1) reference is to another added-subtree object — remapped via
-        ///      <paramref name="sourceToClone"/>
-        ///   2) reference is to a base-prefab object on the source instance — remapped to
-        ///      the corresponding object on the target instance via base-asset correspondence
-        /// References to objects outside the source instance (project assets, unrelated
-        /// scene objects) are left untouched so SaveAsPrefabAsset can handle them normally.
-        /// </summary>
-        private static void RemapClonedReferences(
-            Dictionary<Object, Object> sourceToClone,
-            GameObject sourceInstance,
-            GameObject targetInstance)
-        {
-            var sourceInstanceIds = new HashSet<int>();
-            CollectInstanceIds(sourceInstance.transform, sourceInstanceIds);
-
-            var baseToTarget = BuildBaseAssetToTargetMapping(targetInstance);
-
-            foreach (var kvp in sourceToClone)
-            {
-                if (!(kvp.Value is Component clone)) continue;
-                if (clone == null) continue;
-                // Transform cross-refs (m_Father / m_Children) are fully internal to the
-                // cloned subtree and handled by Instantiate. Skip to avoid accidental writes.
-                if (clone is Transform) continue;
-
-                using var so = new SerializedObject(clone);
-                var prop = so.GetIterator();
-                bool changed = false;
-
-                while (prop.NextVisible(enterChildren: true))
-                {
-                    if (prop.propertyType != SerializedPropertyType.ObjectReference) continue;
-
-                    var current = prop.objectReferenceValue;
-                    if (current == null) continue;
-                    if (!sourceInstanceIds.Contains(current.GetInstanceID())) continue;
-
-                    Object remapped = null;
-                    if (sourceToClone.TryGetValue(current, out var cloneRef))
-                    {
-                        remapped = cloneRef;
-                    }
-                    else
-                    {
-                        var baseAsset = PrefabUtility.GetCorrespondingObjectFromSource(current);
-                        if (baseAsset != null && baseToTarget.TryGetValue(baseAsset, out var targetRef))
-                            remapped = targetRef;
-                    }
-
-                    if (remapped != null && remapped != current)
-                    {
-                        prop.objectReferenceValue = remapped;
-                        changed = true;
-                    }
-                }
-
-                if (changed)
-                    so.ApplyModifiedPropertiesWithoutUndo();
-            }
-        }
-
-        /// <summary>
-        /// Applies removed GameObjects from the source instance to the target instance
-        /// by destroying the corresponding objects in the target.
-        /// </summary>
-        public static void ApplyRemovedGameObjects(GameObject sourceInstance, GameObject targetInstance)
-        {
-            var removedObjects = PrefabUtility.GetRemovedGameObjects(sourceInstance);
-
-            foreach (var removed in removedObjects)
-            {
-                if (removed.assetGameObject == null) continue;
-
-                // Build the path of the removed object relative to the prefab root
-                // Pass null as root to walk up to the hierarchy root (prefab asset root)
-                string removedPath = GetRelativePath(null, removed.assetGameObject.transform);
-
-                // Find the corresponding object in the target instance
-                Transform targetTransform = targetInstance.transform.Find(removedPath);
-                if (targetTransform != null)
-                {
-                    Object.DestroyImmediate(targetTransform.gameObject);
-                }
-                else
-                {
-                    Debug.LogWarning(
-                        $"[Color Variant Generator] Could not find '{removedPath}' in target instance for removal. Skipping.");
-                }
-            }
-        }
-
-        /// <summary>
-        /// Applies filtered PropertyModifications to a fresh target instance by remapping each
-        /// modification's target (which points to the base Prefab asset object) to the
-        /// corresponding scene object on the target instance, then writing the override value
-        /// directly onto that object via SerializedObject.
-        /// </summary>
-        /// <remarks>
-        /// Writing values via SerializedObject (rather than PrefabUtility.SetPropertyModifications)
-        /// is required: SetPropertyModifications updates only the override bookkeeping and leaves
-        /// the runtime state (gameObject.name / .activeSelf / .tag) at the base value. The
-        /// subsequent SaveAsPrefabAsset recomputes overrides from the diff against the base, so
-        /// any value still matching the base would be recorded as "no override".
-        /// </remarks>
-        public static void ApplyModifications(GameObject targetInstance, PropertyModification[] modifications)
-        {
-            if (modifications == null || modifications.Length == 0) return;
-
-            var baseToTarget = BuildBaseAssetToTargetMapping(targetInstance);
-
-            // Group modifications by their remapped target so we can batch SerializedObject writes.
-            var modsByTarget = new Dictionary<Object, List<PropertyModification>>();
-
-            foreach (var mod in modifications)
-            {
-                if (mod.target == null) continue;
-
-                if (!baseToTarget.TryGetValue(mod.target, out var remappedTarget))
-                    continue;
-
-                if (!modsByTarget.TryGetValue(remappedTarget, out var list))
-                {
-                    list = new List<PropertyModification>();
-                    modsByTarget[remappedTarget] = list;
-                }
-                list.Add(new PropertyModification
-                {
-                    target = remappedTarget,
-                    propertyPath = mod.propertyPath,
-                    value = mod.value,
-                    objectReference = RemapObjectReference(mod.objectReference, baseToTarget)
-                });
-            }
-
-            foreach (var kvp in modsByTarget)
-            {
-                var target = kvp.Key;
-                using var so = new SerializedObject(target);
-                bool anyWritten = false;
-
-                foreach (var mod in kvp.Value)
-                {
-                    var prop = so.FindProperty(mod.propertyPath);
-                    if (prop == null) continue;
-                    if (WriteValueToProperty(prop, mod.value, mod.objectReference))
-                        anyWritten = true;
-                }
-
-                if (anyWritten)
-                    so.ApplyModifiedPropertiesWithoutUndo();
-
-                // GameObject.SetActive is the authoritative way to flip active state — the
-                // m_IsActive SerializedProperty write above sets the serialized value, but
-                // the runtime activeSelf state is also read by some editor paths. Keep them
-                // in sync.
-                if (target is GameObject go)
-                {
-                    foreach (var mod in kvp.Value)
-                    {
-                        if (mod.propertyPath == "m_IsActive"
-                            && bool.TryParse(NormalizeBoolString(mod.value), out bool active)
-                            && go.activeSelf != active)
-                        {
-                            go.SetActive(active);
-                        }
-                    }
-                }
-            }
-        }
-
-        /// <summary>
-        /// Writes a PropertyModification's serialized value onto a SerializedProperty.
-        /// Returns true if the property was successfully updated.
-        /// </summary>
-        private static bool WriteValueToProperty(SerializedProperty prop, string value, Object objectReference)
-        {
-            switch (prop.propertyType)
-            {
-                case SerializedPropertyType.Integer:
-                case SerializedPropertyType.LayerMask:
-                case SerializedPropertyType.ArraySize:
-                case SerializedPropertyType.Character:
-                    if (long.TryParse(value, out long l))
-                    {
-                        prop.longValue = l;
-                        return true;
-                    }
-                    return false;
-                case SerializedPropertyType.Boolean:
-                    if (bool.TryParse(NormalizeBoolString(value), out bool b))
-                    {
-                        prop.boolValue = b;
-                        return true;
-                    }
-                    return false;
-                case SerializedPropertyType.Float:
-                    if (float.TryParse(value, System.Globalization.NumberStyles.Float,
-                        System.Globalization.CultureInfo.InvariantCulture, out float f))
-                    {
-                        prop.floatValue = f;
-                        return true;
-                    }
-                    return false;
-                case SerializedPropertyType.String:
-                    prop.stringValue = value ?? string.Empty;
-                    return true;
-                case SerializedPropertyType.ObjectReference:
-                    prop.objectReferenceValue = objectReference;
-                    return true;
-                case SerializedPropertyType.Enum:
-                    // Use intValue (the underlying enum integer) rather than enumValueIndex
-                    // (the ordinal into the enum names array). They diverge for non-sequential
-                    // enums and are meaningless for [Flags] enums such as m_StaticEditorFlags.
-                    if (int.TryParse(value, out int ei))
-                    {
-                        prop.intValue = ei;
-                        return true;
-                    }
-                    return false;
-                default:
-                    // Composite / unsupported types — leave for future extension.
-                    return false;
-            }
-        }
-
         // PropertyModification.value stores booleans as "0"/"1"; normalize to "false"/"true"
         // so bool.TryParse can consume them.
         private static string NormalizeBoolString(string value)
@@ -625,9 +314,9 @@ namespace Kanameliser.ColorVariantGenerator
 
         /// <summary>
         /// Builds a mapping from base Prefab asset objects (GameObjects + Transforms + Components)
-        /// to the corresponding objects in the fresh target instance. Used to remap
-        /// PropertyModification.target, which Unity stores as a reference to the base asset
-        /// object rather than the scene instance object.
+        /// to the corresponding objects in the live instance. Used by AnalyzeStructuralChanges
+        /// to remap PropertyModification.target, which Unity stores as a reference to the base
+        /// asset object rather than the scene instance object.
         /// </summary>
         private static Dictionary<Object, Object> BuildBaseAssetToTargetMapping(GameObject targetInstance)
         {
@@ -658,12 +347,6 @@ namespace Kanameliser.ColorVariantGenerator
                 CollectBaseToTarget(target.GetChild(i), mapping);
         }
 
-        private static Object RemapObjectReference(Object reference, Dictionary<Object, Object> mapping)
-        {
-            if (reference == null) return null;
-            return mapping.TryGetValue(reference, out var remapped) ? remapped : reference;
-        }
-
         private static string GetGameObjectPathForModification(
             GameObject hierarchyInstance,
             Object modificationTarget,
@@ -676,43 +359,6 @@ namespace Kanameliser.ColorVariantGenerator
             }
 
             return modificationTarget is GameObject targetGo ? targetGo.name : "(unknown)";
-        }
-
-        /// <summary>
-        /// Finds the transform in targetRoot that corresponds to referenceTransform's position
-        /// within sourceRoot's hierarchy. Matches by the shared base Prefab asset object first
-        /// (rename-safe) and falls back to relative path for objects with no base correspondence.
-        /// </summary>
-        private static Transform FindCorrespondingTransform(
-            Transform sourceRoot, Transform targetRoot, Transform referenceTransform)
-        {
-            if (referenceTransform == sourceRoot) return targetRoot;
-
-            var referenceBase = PrefabUtility.GetCorrespondingObjectFromSource(referenceTransform);
-            if (referenceBase != null)
-            {
-                var found = FindByBaseCorrespondence(targetRoot, referenceBase);
-                if (found != null) return found;
-            }
-
-            string relativePath = GetRelativePath(sourceRoot, referenceTransform);
-            if (string.IsNullOrEmpty(relativePath)) return targetRoot;
-
-            return targetRoot.Find(relativePath);
-        }
-
-        private static Transform FindByBaseCorrespondence(Transform targetRoot, Transform referenceBase)
-        {
-            var rootBase = PrefabUtility.GetCorrespondingObjectFromSource(targetRoot);
-            if (rootBase == referenceBase) return targetRoot;
-
-            for (int i = 0; i < targetRoot.childCount; i++)
-            {
-                var child = targetRoot.GetChild(i);
-                var found = FindByBaseCorrespondence(child, referenceBase);
-                if (found != null) return found;
-            }
-            return null;
         }
 
         /// <summary>
