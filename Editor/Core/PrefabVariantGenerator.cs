@@ -104,14 +104,19 @@ namespace Kanameliser.ColorVariantGenerator
                 //     Structural changes baked into intermediate Variants would be silently dropped.
                 // Reject the request rather than producing a Variant that quietly diverges from
                 // the user's intent.
-                var hierarchySource = PrefabUtility.GetCorrespondingObjectFromSource(request.hierarchyInstance);
-                if (request.basePrefabAsset != null && hierarchySource != null
-                    && request.basePrefabAsset != hierarchySource)
+                if (request.basePrefabAsset != null)
                 {
-                    result.errorMessage =
-                        "Standard mode cannot retarget the Variant parent to an ancestor — structural changes from intermediate Variants cannot be preserved. " +
-                        "Set the Variant Parent dropdown back to the direct parent, or switch to Strict mode.";
-                    return result;
+                    string hierarchyPrefabPath = PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(request.hierarchyInstance);
+                    string requestedPrefabPath = AssetDatabase.GetAssetPath(request.basePrefabAsset);
+                    if (!string.IsNullOrEmpty(hierarchyPrefabPath)
+                        && !string.IsNullOrEmpty(requestedPrefabPath)
+                        && hierarchyPrefabPath != requestedPrefabPath)
+                    {
+                        result.errorMessage =
+                            "Standard mode cannot retarget the Variant parent to an ancestor — structural changes from intermediate Variants cannot be preserved. " +
+                            "Set the Variant Parent dropdown back to the direct parent, or switch to Strict mode.";
+                        return result;
+                    }
                 }
 
                 // Always duplicate the hierarchy instance via the same editor-internal path
