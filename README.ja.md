@@ -77,6 +77,8 @@ Prefabを丸ごと複製する方法では、ベースに修正が入るたび�
 
 > **ヒント：** ベースPrefabフィールドには**Hierarchyのインスタンス**をドラッグしてください（Projectウィンドウのアセットではありません）。シーンプレビューにはシーン上のインスタンスが必要です。
 
+> **Nested Prefabのルートも指定可能：** 親Prefabインスタンス配下に配置されたNested Prefabのルートも、ベースPrefabとして指定できます。この場合、生成されるVariantはそのNested Prefab自身に対するVariantとして保存されます。Prefabインスタンス内部のNested Prefabではない通常GameObjectは指定できません。
+
 > **Variantの親を選択：** ベースPrefabが多段Variant（例：Base → Black）の場合、出力設定に **Variantの親** ドロップダウンが表示されます。生成するVariantの親となる祖先Prefabを選択できます。たとえば「Red」を「Black」の子ではなく「Base」の直接の子として生成したい場合に便利です。Standardモードでは直接親に固定されます。
 
 > **Prefabからインポート：** ベースPrefabフィールドのオプションメニュー（▼）から、既存Prefabのマテリアル構成を読み込むこともできます。マテリアルの差分が自動検出され、オーバーライドスロットに反映されます。

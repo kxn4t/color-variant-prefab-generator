@@ -85,7 +85,17 @@ CV Creatorは2つの生成モードを持ち、Base Prefabフィールド横のO
 
 ### ベースPrefab指定
 
-**Hierarchyのインスタンス**（Projectアセットではなく）を指定する。Sceneプレビューのためにシーン上のインスタンスが必要。Projectアセットを指定した場合は警告を表示。
+**Hierarchyのインスタンス**（Projectアセットではなく）を指定する。Sceneプレビューのためにシーン上のインスタンスが必要。
+
+指定可能な対象:
+
+- **最外側のPrefabインスタンスのルート**
+- **Nested Prefabのルート** — 親Prefabインスタンス配下にある場合も、そのNested Prefab自身を起点としてVariantを生成できる
+
+以下は警告を表示して拒否する:
+
+- **Projectアセット** — Sceneプレビューが行えないため
+- **Prefabインスタンス内部の通常GameObject** — Variant生成は常にPrefabインスタンスのルートを前提とするため
 
 **Optionsメニュー (▼)**: ObjectFieldの右に配置。「Import from Prefab」機能と「Strict Mode (Material Only)」トグルへのアクセスを提供。
 

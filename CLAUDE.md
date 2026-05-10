@@ -85,6 +85,9 @@ Localization層 (Localization.cs — #if CVG_HAS_NDMF で条件分岐)
 - UI変更時は、既存のレイアウトパターンやスタイル規約を先に読み取ってから実装する。新しいUI要素は既存パターンに合わせる
 - ドキュメント更新時は変更箇所に直接関係するセクションのみ更新する。スコープを勝手に広げない
 - UIコンテナーに要素を追加する際は、`ElementAt()` / `Children`等のインデックスベースの参照が壊れないか確認する
+- Prefab instanceを扱う際、rootと配下GameObjectで挙動が変わるUnity APIに注意する。Base Prefab fieldのようにPrefabインスタンスのrootを要求する場合は`PrefabUtility.GetNearestPrefabInstanceRoot(go) == go`で判定する（`IsOutermostPrefabInstanceRoot`はNested Prefab rootも拒否してしまう）。Asset取得も`GetCorrespondingObjectFromSource`ではなく`GetPrefabAssetPathOfNearestInstanceRoot` + `LoadAssetAtPath`のpathベースで揃える。Generator側のparent検証など他の経路で同じ概念を扱う場合も同じpath比較に揃える
+- CV Creatorのマテリアルbaselineは`_originalMaterials`（UI差分・Prefab asset側baseline用）と`_previewOriginalMaterials`（scene復元用）の二重管理。pre-existing overrideがあるslotではこの2つが異なる値を持つ。preview/clear周辺のロジックを変更するときは、操作の意味論（scan時点に戻すのか、UI上のoverrideを消すのか）に応じてどちらのbaselineが正しいかを確認する。詳細は[docs/architecture.md](docs/architecture.md)の「設計上の注意点」を参照
+- rescan（`ScanMaterialSlotsInternal(preserveOverrides: true)`）で前回scanの状態を引き継ぐ判断は`_previewActive`をrescan前に保存した`wasPreviewActive`でガードする。preview非アクティブ時のrescanは最新のscene状態を新baselineとして信用する設計（外部編集の保護のため）。同じガードを`isToolMadeOverride`分類にも適用しないとSync経由で取り込まれた外部編集をtool-madeと誤分類してSelective Revertが破壊する
 
 ## 主要ドキュメント
 

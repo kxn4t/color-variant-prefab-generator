@@ -12,6 +12,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **CV Creator: Preview clear behavior** — Existing material overrides on the Hierarchy instance are now preserved when clearing preview state or clearing overrides after generation.
+- **CV Creator: Standard Mode** — Fixed material baseline handling during active preview rescans, so added or changed renderer slots restore to the correct original material.
+- **CV Creator: Standard Mode** — Nested Prefab roots can now be selected as the Base Prefab target, while ordinary GameObjects inside a Prefab instance are rejected with a warning.
+
+---
+
+### 修正
+
+- **CV Creator: プレビュークリア時の挙動** — Hierarchyインスタンス上に元から存在していたマテリアルオーバーライドが、プレビュー解除時や生成後のoverrideクリア時に失われないように修正
+- **CV Creator: Standard モード** — active preview中のrescanでマテリアルのベースラインを正しく保持し、追加・変更されたrenderer slotが正しい元マテリアルへ戻るように修正
+- **CV Creator: Standard モード** — Nested Prefab rootをBase Prefabとして選択できるようにし、Prefab内の通常のGameObjectは警告して拒否するように修正
+
 ## [0.3.0-beta.1] - 2026-04-26
 
 ### Added
