@@ -382,7 +382,16 @@ namespace Kanameliser.ColorVariantGenerator
                 if (!keep)
                 {
                     _variantNameField.value = "";
-                    ResetPreview();
+                    bool wasPreviewActive = _previewActive;
+                    if (wasPreviewActive)
+                    {
+                        ResetPreview();
+                    }
+                    else
+                    {
+                        RestoreOriginalMaterials();
+                        RevertPrefabOverridesForCurrentMode(wasPreviewActive);
+                    }
                     _overrides.Clear();
                     SyncOverridesFromRenderers();
                     RefreshAllUI();

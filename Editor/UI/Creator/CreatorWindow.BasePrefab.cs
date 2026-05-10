@@ -230,10 +230,10 @@ namespace Kanameliser.ColorVariantGenerator
             var previousOverrides = preserveOverrides
                 ? new Dictionary<MaterialSlotIdentifier, Material>(_overrides)
                 : null;
-            var previousOriginalMaterials = preserveOverrides && wasPreviewActive
+            var previousOriginalMaterials = preserveOverrides
                 ? new Dictionary<MaterialSlotIdentifier, Material>(_originalMaterials)
                 : null;
-            var previousPreviewOriginalMaterials = preserveOverrides && wasPreviewActive
+            var previousPreviewOriginalMaterials = preserveOverrides
                 ? new Dictionary<MaterialSlotIdentifier, Material>(_previewOriginalMaterials)
                 : null;
 
@@ -258,13 +258,9 @@ namespace Kanameliser.ColorVariantGenerator
 
             foreach (var slot in _scannedSlots)
             {
-                // Freeze baselines only while preview is active. When preview is not
-                // active, external material edits should become the new scan baseline.
-                bool shouldCarryBaseline = preserveOverrides
-                    && wasPreviewActive
-                    && HasPreviousOverride(previousOverrides, slot.identifier);
-
-                _previewOriginalMaterials[slot.identifier] = shouldCarryBaseline && TryGetPreviousMaterial(
+                // Keep baselines stable for slots that already existed before this rescan.
+                // New slots get their first baseline from the material state at discovery time.
+                _previewOriginalMaterials[slot.identifier] = preserveOverrides && TryGetPreviousMaterial(
                     previousPreviewOriginalMaterials, slot.identifier, out var previousPreviewOriginal)
                     ? previousPreviewOriginal
                     : slot.baseMaterial;
@@ -318,7 +314,7 @@ namespace Kanameliser.ColorVariantGenerator
                     }
                 }
 
-                _originalMaterials[slot.identifier] = shouldCarryBaseline && TryGetPreviousMaterial(
+                _originalMaterials[slot.identifier] = preserveOverrides && TryGetPreviousMaterial(
                     previousOriginalMaterials, slot.identifier, out var previousOriginal)
                     ? previousOriginal
                     : slot.baseMaterial;

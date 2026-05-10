@@ -17,7 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **CV Creator: Preview clear behavior** — Existing material overrides on the Hierarchy instance are now preserved when clearing preview state or clearing overrides after generation.
-- **CV Creator: Standard Mode** — Fixed material baseline handling during active preview rescans, so added or changed renderer slots restore to the correct original material.
+- **CV Creator: Full Revert** — Full Revert now reverts all prefab overrides on target Renderers even when the overrides existed before the tool loaded or no preview was active.
+- **CV Creator: Standard Mode** — Fixed material baseline handling during slot rescans and Material Browser refreshes. Existing slots keep their original baselines, while newly discovered renderer slots get a baseline when they are first found.
 - **CV Creator: Standard Mode** — Nested Prefab roots can now be selected as the Base Prefab target, while ordinary GameObjects inside a Prefab instance are rejected with a warning.
 
 ---
@@ -25,7 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### 修正
 
 - **CV Creator: プレビュークリア時の挙動** — Hierarchyインスタンス上に元から存在していたマテリアルオーバーライドが、プレビュー解除時や生成後のoverrideクリア時に失われないように修正
-- **CV Creator: Standard モード** — active preview中のrescanでマテリアルのベースラインを正しく保持し、追加・変更されたrenderer slotが正しい元マテリアルへ戻るように修正
+- **CV Creator: Full Revert** — ツール読み込み前から存在していたoverrideやpreview非アクティブ時のoverrideも含め、対象RendererのPrefab overrideを完全にrevertするように修正
+- **CV Creator: Standard モード** — slotのrescanやMaterial Browserの更新時のマテリアルbaseline処理を修正。既存slotは元のbaselineを維持し、新しく発見されたrenderer slotだけ発見時点のマテリアルをbaselineとして登録するように修正
 - **CV Creator: Standard モード** — Nested Prefab rootをBase Prefabとして選択できるようにし、Prefab内の通常のGameObjectは警告して拒否するように修正
 
 ## [0.3.0-beta.1] - 2026-04-26
