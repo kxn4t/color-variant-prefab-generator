@@ -270,6 +270,7 @@ namespace Kanameliser.ColorVariantGenerator
                             // override in the previous snapshot must stay out of
                             // _preExistingOverrides so SelectiveRevert can revert it.
                             bool isToolMadeOverride = preserveOverrides
+                                && wasPreviewActive
                                 && HasPreviousOverride(previousOverrides, slot.identifier)
                                 && !(previousPreExistingOverrides?.Contains(slot.identifier) ?? false);
 
