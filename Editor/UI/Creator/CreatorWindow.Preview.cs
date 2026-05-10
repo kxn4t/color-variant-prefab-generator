@@ -84,8 +84,10 @@ namespace Kanameliser.ColorVariantGenerator
         {
             if (!_previewActive || _baseInstance == null) return;
 
-            // Restore materials visually
-            foreach (var kvp in _originalMaterials)
+            // Restore materials visually to the scan-time Hierarchy state. For
+            // pre-existing overrides this differs from _originalMaterials, which stores
+            // the Prefab asset baseline used for UI diffing and generation.
+            foreach (var kvp in _previewOriginalMaterials)
             {
                 var slot = kvp.Key;
                 var originalMaterial = kvp.Value;
@@ -192,19 +194,20 @@ namespace Kanameliser.ColorVariantGenerator
 
             _previewActive = false;
             _overrides.Clear();
+            SyncOverridesFromRenderers();
             _variantNameField.value = "";
             RefreshAllUI();
         }
 
         /// <summary>
-        /// Restores all renderer materials to <see cref="_originalMaterials"/> snapshot values.
+        /// Restores all renderer materials to scan-time Hierarchy snapshot values.
         /// Unlike <see cref="ResetPreview"/>, this runs unconditionally regardless of preview state.
         /// </summary>
         private void RestoreOriginalMaterials()
         {
             if (_baseInstance == null) return;
 
-            foreach (var kvp in _originalMaterials)
+            foreach (var kvp in _previewOriginalMaterials)
             {
                 var slot = kvp.Key;
                 var originalMaterial = kvp.Value;

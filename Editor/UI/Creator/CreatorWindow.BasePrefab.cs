@@ -137,6 +137,7 @@ namespace Kanameliser.ColorVariantGenerator
             _scannedSlots.Clear();
             _overrides.Clear();
             _originalMaterials.Clear();
+            _previewOriginalMaterials.Clear();
             _preExistingOverrides.Clear();
             _lastSlotKeys.Clear();
             _bulkFoldoutState.Clear();
@@ -225,6 +226,7 @@ namespace Kanameliser.ColorVariantGenerator
 
             // Store original materials for preview reset
             _originalMaterials.Clear();
+            _previewOriginalMaterials.Clear();
             _preExistingOverrides.Clear();
             _overrides.Clear();
 
@@ -232,6 +234,8 @@ namespace Kanameliser.ColorVariantGenerator
 
             foreach (var slot in _scannedSlots)
             {
+                _previewOriginalMaterials[slot.identifier] = slot.baseMaterial;
+
                 // Snapshot which slots already have prefab overrides before this tool touched them.
                 // Used by SelectiveRevert to avoid reverting user-made overrides.
                 if (isPrefabInstance)
