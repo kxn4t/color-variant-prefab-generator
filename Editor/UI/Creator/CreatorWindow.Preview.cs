@@ -103,21 +103,7 @@ namespace Kanameliser.ColorVariantGenerator
                 }
             }
 
-            // Revert prefab overrides based on user setting
-            if (PrefabUtility.IsPartOfPrefabInstance(_baseInstance))
-            {
-                var mode = (PreviewRevertMode)EditorPrefs.GetInt(PreviewRevertModeKey, 0);
-
-                switch (mode)
-                {
-                    case PreviewRevertMode.SelectiveRevert:
-                        RevertToolOverrides();
-                        break;
-                    case PreviewRevertMode.FullRevert:
-                        RevertAllRendererOverrides();
-                        break;
-                }
-            }
+            RevertPrefabOverridesForCurrentMode(wasPreviewActive: true);
 
             _previewActive = false;
             SceneView.RepaintAll();
@@ -162,6 +148,24 @@ namespace Kanameliser.ColorVariantGenerator
             }
         }
 
+        private void RevertPrefabOverridesForCurrentMode(bool wasPreviewActive)
+        {
+            if (_baseInstance == null || !PrefabUtility.IsPartOfPrefabInstance(_baseInstance))
+                return;
+
+            var mode = (PreviewRevertMode)EditorPrefs.GetInt(PreviewRevertModeKey, 0);
+            switch (mode)
+            {
+                case PreviewRevertMode.SelectiveRevert:
+                    if (wasPreviewActive)
+                        RevertToolOverrides();
+                    break;
+                case PreviewRevertMode.FullRevert:
+                    RevertAllRendererOverrides();
+                    break;
+            }
+        }
+
         private void OnClearOverrides()
         {
             // ResetPreview's visual restore loop does not call Undo.RecordObject, so a
@@ -175,22 +179,10 @@ namespace Kanameliser.ColorVariantGenerator
 
             RestoreOriginalMaterials();
 
-            // Revert preview-introduced prefab overrides per the user-selected mode.
-            // Mirrors the tail of ResetPreview; only meaningful while preview was active.
-            if (wasPreviewActive && _baseInstance != null
-                && PrefabUtility.IsPartOfPrefabInstance(_baseInstance))
-            {
-                var mode = (PreviewRevertMode)EditorPrefs.GetInt(PreviewRevertModeKey, 0);
-                switch (mode)
-                {
-                    case PreviewRevertMode.SelectiveRevert:
-                        RevertToolOverrides();
-                        break;
-                    case PreviewRevertMode.FullRevert:
-                        RevertAllRendererOverrides();
-                        break;
-                }
-            }
+            // Selective Revert only removes overrides introduced during an active
+            // preview. Full Revert intentionally reverts all prefab overrides on
+            // target renderers, including overrides that existed before the tool loaded.
+            RevertPrefabOverridesForCurrentMode(wasPreviewActive);
 
             _previewActive = false;
             _overrides.Clear();
