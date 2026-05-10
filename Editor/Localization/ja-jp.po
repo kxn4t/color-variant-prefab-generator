@@ -86,6 +86,9 @@ msgstr "Projectウィンドウのアセットではなく、HierarchyのPrefab�
 msgid "creator.warning.notPrefabInstance"
 msgstr "選択されたオブジェクトはPrefabインスタンスではありません。Prefab Variantの生成にはPrefabインスタンスが必要です。"
 
+msgid "creator.warning.notPrefabInstanceRoot"
+msgstr "Prefabインスタンスのルートを選択してください。Prefabインスタンス内の子GameObjectはBase Prefabとして使用できません。"
+
 msgid "creator.materialSlots"
 msgstr "マテリアルスロット"
 

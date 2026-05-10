@@ -166,18 +166,34 @@ namespace Kanameliser.ColorVariantGenerator
                 }
 
                 // Verify it's a prefab instance (not just any GameObject)
-                _basePrefabAsset = PrefabUtility.GetCorrespondingObjectFromSource(_baseInstance);
-                if (_basePrefabAsset == null)
+                if (!PrefabUtility.IsPartOfPrefabInstance(_baseInstance))
                 {
                     _currentWarningKey = "creator.warning.notPrefabInstance";
                     _basePrefabWarningLabel.text = Localization.S(_currentWarningKey);
                     _basePrefabWarningLabel.style.display = DisplayStyle.Flex;
                 }
+                else if (PrefabUtility.GetNearestPrefabInstanceRoot(_baseInstance) != _baseInstance)
+                {
+                    _currentWarningKey = "creator.warning.notPrefabInstanceRoot";
+                    _basePrefabWarningLabel.text = Localization.S(_currentWarningKey);
+                    _basePrefabWarningLabel.style.display = DisplayStyle.Flex;
+                }
                 else
                 {
-                    ScanMaterialSlots();
-                    BuildAncestorChain();
-                    RefreshStructuralChanges();
+                    string prefabPath = PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(_baseInstance);
+                    _basePrefabAsset = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+                    if (_basePrefabAsset == null)
+                    {
+                        _currentWarningKey = "creator.warning.notPrefabInstance";
+                        _basePrefabWarningLabel.text = Localization.S(_currentWarningKey);
+                        _basePrefabWarningLabel.style.display = DisplayStyle.Flex;
+                    }
+                    else
+                    {
+                        ScanMaterialSlots();
+                        BuildAncestorChain();
+                        RefreshStructuralChanges();
+                    }
                 }
             }
 

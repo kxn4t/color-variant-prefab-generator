@@ -86,6 +86,9 @@ msgstr "Please select a Prefab instance from the Hierarchy, not a Prefab asset f
 msgid "creator.warning.notPrefabInstance"
 msgstr "Selected object is not a Prefab instance. Prefab Variant generation requires a Prefab instance."
 
+msgid "creator.warning.notPrefabInstanceRoot"
+msgstr "Please select a Prefab instance root. Child GameObjects inside a Prefab instance cannot be used as the Base Prefab."
+
 msgid "creator.materialSlots"
 msgstr "Material Slots"
 
