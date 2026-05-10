@@ -384,6 +384,7 @@ namespace Kanameliser.ColorVariantGenerator
                     _variantNameField.value = "";
                     ResetPreview();
                     _overrides.Clear();
+                    SyncOverridesFromRenderers();
                     RefreshAllUI();
                 }
             }

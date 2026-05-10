@@ -37,6 +37,7 @@ namespace Kanameliser.ColorVariantGenerator
         private List<ScannedMaterialSlot> _scannedSlots = new List<ScannedMaterialSlot>();
         private Dictionary<MaterialSlotIdentifier, Material> _overrides = new Dictionary<MaterialSlotIdentifier, Material>();
         private Dictionary<MaterialSlotIdentifier, Material> _originalMaterials = new Dictionary<MaterialSlotIdentifier, Material>();
+        private Dictionary<MaterialSlotIdentifier, Material> _previewOriginalMaterials = new Dictionary<MaterialSlotIdentifier, Material>();
         private Dictionary<MaterialSlotIdentifier, ObjectField> _slotObjectFields = new Dictionary<MaterialSlotIdentifier, ObjectField>();
         private bool _previewActive;
         private HashSet<MaterialSlotIdentifier> _preExistingOverrides = new HashSet<MaterialSlotIdentifier>();
