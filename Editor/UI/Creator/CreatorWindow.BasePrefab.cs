@@ -208,14 +208,16 @@ namespace Kanameliser.ColorVariantGenerator
         {
             if (_baseInstance == null) return;
 
+            bool wasPreviewActive = _previewActive;
+
             // Snapshot existing user overrides before clearing
             var previousOverrides = preserveOverrides
                 ? new Dictionary<MaterialSlotIdentifier, Material>(_overrides)
                 : null;
-            var previousOriginalMaterials = preserveOverrides
+            var previousOriginalMaterials = preserveOverrides && wasPreviewActive
                 ? new Dictionary<MaterialSlotIdentifier, Material>(_originalMaterials)
                 : null;
-            var previousPreviewOriginalMaterials = preserveOverrides
+            var previousPreviewOriginalMaterials = preserveOverrides && wasPreviewActive
                 ? new Dictionary<MaterialSlotIdentifier, Material>(_previewOriginalMaterials)
                 : null;
 
@@ -240,7 +242,13 @@ namespace Kanameliser.ColorVariantGenerator
 
             foreach (var slot in _scannedSlots)
             {
-                _previewOriginalMaterials[slot.identifier] = TryGetPreviousMaterial(
+                // Freeze baselines only while preview is active. When preview is not
+                // active, external material edits should become the new scan baseline.
+                bool shouldCarryBaseline = preserveOverrides
+                    && wasPreviewActive
+                    && HasPreviousOverride(previousOverrides, slot.identifier);
+
+                _previewOriginalMaterials[slot.identifier] = shouldCarryBaseline && TryGetPreviousMaterial(
                     previousPreviewOriginalMaterials, slot.identifier, out var previousPreviewOriginal)
                     ? previousPreviewOriginal
                     : slot.baseMaterial;
@@ -262,8 +270,7 @@ namespace Kanameliser.ColorVariantGenerator
                             // override in the previous snapshot must stay out of
                             // _preExistingOverrides so SelectiveRevert can revert it.
                             bool isToolMadeOverride = preserveOverrides
-                                && previousOverrides != null
-                                && previousOverrides.ContainsKey(slot.identifier)
+                                && HasPreviousOverride(previousOverrides, slot.identifier)
                                 && !(previousPreExistingOverrides?.Contains(slot.identifier) ?? false);
 
                             if (!isToolMadeOverride)
@@ -294,7 +301,7 @@ namespace Kanameliser.ColorVariantGenerator
                     }
                 }
 
-                _originalMaterials[slot.identifier] = TryGetPreviousMaterial(
+                _originalMaterials[slot.identifier] = shouldCarryBaseline && TryGetPreviousMaterial(
                     previousOriginalMaterials, slot.identifier, out var previousOriginal)
                     ? previousOriginal
                     : slot.baseMaterial;
@@ -311,7 +318,7 @@ namespace Kanameliser.ColorVariantGenerator
                 foreach (var slot in _scannedSlots)
                 {
                     if (_overrides.ContainsKey(slot.identifier)) continue;
-                    if (previousOverrides.TryGetValue(slot.identifier, out var prevMat) && prevMat != null)
+                    if (TryGetPreviousMaterial(previousOverrides, slot.identifier, out var prevMat) && prevMat != null)
                         _overrides[slot.identifier] = prevMat;
                 }
             }
@@ -320,6 +327,14 @@ namespace Kanameliser.ColorVariantGenerator
             _lastSlotKeys.Clear();
             foreach (var slot in _scannedSlots)
                 _lastSlotKeys.Add(slot.identifier.GetLookupKey());
+        }
+
+        private static bool HasPreviousOverride(
+            Dictionary<MaterialSlotIdentifier, Material> previousOverrides,
+            MaterialSlotIdentifier freshSlot)
+        {
+            return TryGetPreviousMaterial(previousOverrides, freshSlot, out var material)
+                && material != null;
         }
 
         private static bool TryGetPreviousMaterial(
