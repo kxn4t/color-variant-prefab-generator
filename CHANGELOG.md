@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0-beta.2] - 2026-05-10
+
 ### Fixed
 
 - **CV Creator: Preview clear behavior** — Existing material overrides on the Hierarchy instance are now preserved when clearing preview state or clearing overrides after generation.
