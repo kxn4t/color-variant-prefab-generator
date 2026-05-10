@@ -212,6 +212,12 @@ namespace Kanameliser.ColorVariantGenerator
             var previousOverrides = preserveOverrides
                 ? new Dictionary<MaterialSlotIdentifier, Material>(_overrides)
                 : null;
+            var previousOriginalMaterials = preserveOverrides
+                ? new Dictionary<MaterialSlotIdentifier, Material>(_originalMaterials)
+                : null;
+            var previousPreviewOriginalMaterials = preserveOverrides
+                ? new Dictionary<MaterialSlotIdentifier, Material>(_previewOriginalMaterials)
+                : null;
 
             // Snapshot which slots were already marked pre-existing on the previous scan,
             // so rescans can tell a tool-made override apart from a genuine pre-existing
@@ -234,7 +240,10 @@ namespace Kanameliser.ColorVariantGenerator
 
             foreach (var slot in _scannedSlots)
             {
-                _previewOriginalMaterials[slot.identifier] = slot.baseMaterial;
+                _previewOriginalMaterials[slot.identifier] = TryGetPreviousMaterial(
+                    previousPreviewOriginalMaterials, slot.identifier, out var previousPreviewOriginal)
+                    ? previousPreviewOriginal
+                    : slot.baseMaterial;
 
                 // Snapshot which slots already have prefab overrides before this tool touched them.
                 // Used by SelectiveRevert to avoid reverting user-made overrides.
@@ -285,7 +294,10 @@ namespace Kanameliser.ColorVariantGenerator
                     }
                 }
 
-                _originalMaterials[slot.identifier] = slot.baseMaterial;
+                _originalMaterials[slot.identifier] = TryGetPreviousMaterial(
+                    previousOriginalMaterials, slot.identifier, out var previousOriginal)
+                    ? previousOriginal
+                    : slot.baseMaterial;
             }
 
             // Restore user-set overrides for slots that still exist.
@@ -308,6 +320,28 @@ namespace Kanameliser.ColorVariantGenerator
             _lastSlotKeys.Clear();
             foreach (var slot in _scannedSlots)
                 _lastSlotKeys.Add(slot.identifier.GetLookupKey());
+        }
+
+        private static bool TryGetPreviousMaterial(
+            Dictionary<MaterialSlotIdentifier, Material> previousMaterials,
+            MaterialSlotIdentifier freshSlot,
+            out Material material)
+        {
+            material = null;
+            if (previousMaterials == null || freshSlot == null) return false;
+            if (previousMaterials.TryGetValue(freshSlot, out material)) return true;
+
+            string lookupKey = freshSlot.GetLookupKey();
+            foreach (var kvp in previousMaterials)
+            {
+                if (kvp.Key != null && kvp.Key.GetLookupKey() == lookupKey)
+                {
+                    material = kvp.Value;
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>
