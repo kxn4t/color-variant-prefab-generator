@@ -12,34 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.3.0-beta.2] - 2026-05-10
-
-### Fixed
-
-- **CV Creator: Preview clear behavior** — Existing material overrides on the Hierarchy instance are now preserved when clearing preview state or clearing overrides after generation.
-- **CV Creator: Full Revert** — Full Revert now reverts all prefab overrides on target Renderers even when the overrides existed before the tool loaded or no preview was active.
-- **CV Creator: Standard Mode** — Fixed material baseline handling during slot rescans and Material Browser refreshes. Existing slots keep their original baselines, while newly discovered renderer slots get a baseline when they are first found.
-- **CV Creator: Standard Mode** — Nested Prefab roots can now be selected as the Base Prefab target, while ordinary GameObjects inside a Prefab instance are rejected with a warning.
-
----
-
-### 修正
-
-- **CV Creator: プレビュークリア時の挙動** — Hierarchyインスタンス上に元から存在していたマテリアルオーバーライドが、プレビュー解除時や生成後のoverrideクリア時に失われないように修正
-- **CV Creator: Full Revert** — ツール読み込み前から存在していたoverrideやpreview非アクティブ時のoverrideも含め、対象RendererのPrefab overrideを完全にrevertするように修正
-- **CV Creator: Standard モード** — slotのrescanやMaterial Browserの更新時のマテリアルbaseline処理を修正。既存slotは元のbaselineを維持し、新しく発見されたrenderer slotだけ発見時点のマテリアルをbaselineとして登録するように修正
-- **CV Creator: Standard モード** — Nested Prefab rootをBase Prefabとして選択できるようにし、Prefab内の通常のGameObjectは警告して拒否するように修正
-
-## [0.3.0-beta.1] - 2026-04-26
+## [0.3.0] - 2026-05-10
 
 ### Added
 
 - **CV Creator: Standard Mode** — New default mode that preserves GameObject-level changes made to the Hierarchy instance (added/removed GameObjects plus property overrides on existing GameObjects: name, active state, tag, layer, static flags, etc.) and writes them into the generated Prefab Variant alongside material overrides. An optional toggle switches to a "save the Hierarchy instance directly as a Prefab Variant" path that captures every override Unity recognizes (Transform changes, component property changes, components added/removed, etc.). The previous material-only behavior remains available as **Strict Mode** via the Options menu on the Base Prefab field
   - **Added objects in slot UI** — GameObjects added on the Hierarchy instance show up as a dedicated section in both normal and bulk slot views, letting you assign override materials to Renderers that don't exist on the base Prefab
-
-### Fixed
-
-- **CV Creator: Clear Overrides button** — Clicking "Clear all material overrides" during active preview is now undoable via Ctrl+Z.
+- **CV Creator: Nested Prefab root as Base Prefab** — A Nested Prefab root inside a parent Prefab instance can now be selected as the Base Prefab. The generated Variant is saved as a Variant of that Nested Prefab itself.
 
 ### Improved
 
@@ -47,6 +26,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Color variants** — `Ribbon_blue` ↔ `Ribbon_red`, `Kutsu kuro` ↔ `Kutsu shiro`, `top-blue` ↔ `top-red`
   - **Numbered/versioned duplicates** — `Body_01` ↔ `Body_02`, `Skirt (1)` ↔ `Skirt (2)`, `Hair.001` ↔ `Hair.002`
   - **Same-name disambiguation** — When multiple objects share the same name (e.g., `Mesh` under `Jacket/`, `Skirt/`, `Boots/`), parent hierarchy similarity is used to match them correctly
+- **CV Creator: Preview clear stability** — Improved stability when clearing the preview state and when clearing overrides after generation, especially around interactions with material overrides that existed on the Hierarchy instance before the tool was opened.
+
+### Fixed
+
+- **CV Creator: Clear Overrides button** — Clicking "Clear all material overrides" during active preview is now undoable via Ctrl+Z.
 
 ---
 
@@ -54,10 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **CV Creator: Standard モード** — Hierarchyインスタンス上で行ったGameObjectレベルの変更（GameObjectの追加・削除、および既存GameObject自体のプロパティ変更：rename・active state・Tag・Layer・StaticEditorFlags等）をPrefab Variantに反映する新しいデフォルトモード。オプションを有効にすると「HierarchyインスタンスをそのままPrefab Variantとして保存」する経路に切り替わり、Unityが認識するoverride（Transform変更、コンポーネントのプロパティ変更、コンポーネントの追加・削除など）をすべて取り込みます。従来のマテリアル差し替えのみの挙動は、Base Prefabフィールド横のOptionsメニューから **Strict モード** として引き続き利用可能。販売物の制作時などはマテリアル変更のみが反映されるStrictモードの利用を推奨。
   - **追加オブジェクトのスロットUI** — Hierarchyインスタンス上で追加したGameObjectが、通常モード・一括モードの両方で専用セクションとして表示され、ベースPrefabに存在しないRendererにもオーバーライドマテリアルを割り当て可能
-
-### 修正
-
-- **CV Creator: Clear Overrides ボタン** — プレビュー中に「すべてのマテリアルオーバーライドをクリア」ボタンを押した場合にCtrl+ZでUndoできるように修正
+- **CV Creator: Nested PrefabのルートをBase Prefabに指定可能** — 親Prefabインスタンス配下のNested Prefabのルートも、Base Prefabとして指定可能に。生成されるVariantはそのNested Prefab自身に対するVariantとして保存される。
 
 ### 改善
 
@@ -65,6 +46,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **色違い** — `Ribbon_blue` ↔ `Ribbon_red`、`Kutsu kuro` ↔ `Kutsu shiro`、`top-blue` ↔ `top-red`
   - **番号・バージョン違い** — `Body_01` ↔ `Body_02`、`Skirt (1)` ↔ `Skirt (2)`、`Hair.001` ↔ `Hair.002`
   - **同名オブジェクトの振り分け** — `Jacket/Mesh`・`Skirt/Mesh`・`Boots/Mesh`のように同じ名前のオブジェクトが複数ある場合、親の階層構造の類似度で正しく対応付けるように改善
+- **CV Creator: プレビュークリア時の挙動の安定性を向上** — プレビュー解除時や生成後のオーバーライドクリア時の挙動を安定化。とくにツール起動前からHierarchyインスタンス上に存在していたマテリアルオーバーライドとの相互作用周辺を改善
+
+### 修正
+
+- **CV Creator: Clear Overrides ボタン** — プレビュー中に「すべてのマテリアルオーバーライドをクリア」ボタンを押した場合にCtrl+ZでUndoできるように修正
 
 ## [0.2.0] - 2026-02-19
 
