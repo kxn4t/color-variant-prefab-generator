@@ -120,7 +120,7 @@ Generate Variants for a different base Prefab in bulk, using existing color vari
 1. Open **Tools > Color Variant Prefab Generator > Batch Generator**
 2. Set the **New Base Prefab** — the Prefab you want to generate Variants for
 3. Add source Prefabs (existing color variants) to the **Color Variants** list — you can drag-and-drop multiple Prefabs at once
-4. Variant names are assigned automatically — derived from the difference with the parent Prefab name for Prefab Variants, or from the file name for regular Prefabs. You can manually edit them with the pencil button (✎)
+4. Variant names are assigned automatically — derived from the difference with the parent Prefab name for Prefab Variants, or from the file name for regular Prefabs. Name parts shared by every source in the list are also stripped (e.g. `Outfit_Avatar_Black` / `Outfit_Avatar_White` → `Black` / `White`). You can manually edit them with the pencil button (✎)
 5. Each source is automatically compared against the base, and material differences are detected
 6. Review the **Matching Results** — unmatched slots are highlighted with warnings and can be manually reassigned via dropdown
 7. Set the output path and naming template
@@ -137,10 +137,13 @@ Both tools support a customizable naming template with the following placeholder
 |---|---|
 | `{BaseName}` | The base Prefab's file name (without extension; trailing `_Base` is automatically removed) |
 | `{VariantName}` | The variant name you specify |
+| `{AnyName}` (e.g. `{Avatar}`) | A custom token you define. Writing one in the template adds an input field below it, and the token is replaced with that field's value |
 
 Default template: `{BaseName}_{VariantName}`
 
 Example: Base `Airi_HonmeiKnit` + Variant `Black` → `Airi_HonmeiKnit_Black.prefab`
+
+The template and custom token values are saved for future sessions and shared between CV Creator and the Batch Generator.
 
 > **Tip:** In the Batch Generator, if multiple variants share the same name, a `_1`, `_2`, `_3` … suffix is automatically appended.  
 > Example: `Black`, `Black`, `Black` → `Airi_HonmeiKnit_Black_1.prefab`, `Airi_HonmeiKnit_Black_2.prefab`, `Airi_HonmeiKnit_Black_3.prefab`

@@ -76,6 +76,15 @@
     margin-left: 2px;
 }
 
+/* Custom naming token rows (generated from {token} placeholders in the template) */
+.naming-token-row {
+    margin-left: 14px;
+}
+
+.naming-token-row .output-label {
+    width: 96px;
+}
+
 .output-preview-label {
     margin-top: 4px;
     color: rgba(255, 255, 255, 0.6);

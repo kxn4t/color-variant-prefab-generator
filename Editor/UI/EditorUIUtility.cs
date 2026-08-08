@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text.RegularExpressions;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -18,6 +19,9 @@ namespace Kanameliser.ColorVariantGenerator
 
         // ── Naming ──────────────────────────────────────
         public const string DefaultNamingTemplate = "{BaseName}_{VariantName}";
+        private const string NamingTemplateKey = "ColorVariantGenerator.NamingTemplate";
+        private const string NamingTokenKeyPrefix = "ColorVariantGenerator.NamingToken.";
+        private static readonly Regex PlaceholderPattern = new Regex(@"\{([^{}]+)\}");
 
         // ── UI Symbols ──────────────────────────────────
         public const string Ellipsis = "\u2026";
@@ -56,13 +60,45 @@ namespace Kanameliser.ColorVariantGenerator
 
         /// <summary>
         /// Resolves a file name from a naming template by replacing placeholders.
+        /// {BaseName} and {VariantName} are built-in; any other {token} is replaced with its
+        /// user-defined value persisted in EditorPrefs (empty string when unset).
         /// </summary>
         public static string ResolveFileName(string template, string baseName, string variantName)
         {
+            if (string.IsNullOrEmpty(template))
+                template = DefaultNamingTemplate;
+
             if (baseName != null && baseName.EndsWith("_Base", StringComparison.OrdinalIgnoreCase))
                 baseName = baseName.Substring(0, baseName.Length - 5);
 
-            return template.Replace("{BaseName}", baseName).Replace("{VariantName}", variantName);
+            string result = template.Replace("{BaseName}", baseName).Replace("{VariantName}", variantName);
+            return PlaceholderPattern.Replace(result, m => GetNamingTokenValue(m.Groups[1].Value));
+        }
+
+        /// <summary>
+        /// Returns the persisted value for a user-defined naming token (empty string when unset).
+        /// </summary>
+        public static string GetNamingTokenValue(string tokenName)
+        {
+            return EditorPrefs.GetString(NamingTokenKeyPrefix + tokenName, "");
+        }
+
+        /// <summary>
+        /// Extracts user-defined token names from a naming template — every {name} that is
+        /// not a built-in placeholder — in order of first appearance, without duplicates.
+        /// </summary>
+        public static List<string> ExtractCustomTokenNames(string template)
+        {
+            var result = new List<string>();
+            if (string.IsNullOrEmpty(template)) return result;
+
+            foreach (Match match in PlaceholderPattern.Matches(template))
+            {
+                string name = match.Groups[1].Value;
+                if (name == "BaseName" || name == "VariantName") continue;
+                if (!result.Contains(name)) result.Add(name);
+            }
+            return result;
         }
 
         /// <summary>
@@ -201,11 +237,16 @@ namespace Kanameliser.ColorVariantGenerator
         }
 
         /// <summary>
-        /// Creates the standard Naming Template row (label + TextField).
+        /// Creates the standard Naming Template row (label + TextField) plus dynamically
+        /// generated input rows for user-defined {token} placeholders in the template.
+        /// The template and token values persist across sessions via EditorPrefs and are
+        /// shared between the Creator and Batch Generator windows.
         /// </summary>
         public static VisualElement CreateNamingTemplateRow(
             out TextField namingTemplateField, Action onValueChanged)
         {
+            var wrapper = new VisualElement();
+
             var row = new VisualElement();
             row.AddToClassList("output-row");
 
@@ -214,13 +255,95 @@ namespace Kanameliser.ColorVariantGenerator
             label.AddToClassList("ndmf-tr");
             row.Add(label);
 
-            var field = new TextField { value = DefaultNamingTemplate };
+            string storedTemplate = EditorPrefs.GetString(NamingTemplateKey, DefaultNamingTemplate);
+            if (string.IsNullOrEmpty(storedTemplate))
+                storedTemplate = DefaultNamingTemplate;
+
+            var field = new TextField { value = storedTemplate };
             field.AddToClassList("output-field");
-            field.RegisterValueChangedCallback(_ => onValueChanged?.Invoke());
+            field.AddToClassList("naming-template-field");
+            field.tooltip = Localization.S("common.naming.tooltip");
             row.Add(field);
 
+            // Setting the field value fires the change callback below,
+            // which persists the template and rebuilds the token rows
+            var resetBtn = new Button(() => field.value = DefaultNamingTemplate)
+            {
+                text = Refresh,
+                tooltip = Localization.S("common.naming.resetTooltip")
+            };
+            resetBtn.AddToClassList("browser-browse-button");
+            resetBtn.AddToClassList("naming-reset-button");
+            row.Add(resetBtn);
+
+            var tokenContainer = new VisualElement();
+
+            field.RegisterValueChangedCallback(_ =>
+            {
+                EditorPrefs.SetString(NamingTemplateKey, field.value);
+                RebuildNamingTokenRows(tokenContainer, field.value, onValueChanged);
+                onValueChanged?.Invoke();
+            });
+
+            wrapper.Add(row);
+            wrapper.Add(tokenContainer);
+            RebuildNamingTokenRows(tokenContainer, storedTemplate, onValueChanged);
+
             namingTemplateField = field;
-            return row;
+            return wrapper;
+        }
+
+        /// <summary>
+        /// Rebuilds one input row per user-defined naming token found in the template.
+        /// Token values are persisted in EditorPrefs, keyed by token name.
+        /// </summary>
+        private static void RebuildNamingTokenRows(
+            VisualElement container, string template, Action onValueChanged)
+        {
+            container.Clear();
+
+            foreach (string tokenName in ExtractCustomTokenNames(template))
+            {
+                var row = new VisualElement();
+                row.AddToClassList("output-row");
+                row.AddToClassList("naming-token-row");
+
+                var label = new Label("{" + tokenName + "}");
+                label.AddToClassList("output-label");
+                label.AddToClassList("naming-token-label");
+                label.tooltip = Localization.S("common.namingToken.tooltip");
+                row.Add(label);
+
+                string capturedName = tokenName;
+                var field = new TextField { value = GetNamingTokenValue(tokenName) };
+                field.AddToClassList("output-field");
+                field.RegisterValueChangedCallback(evt =>
+                {
+                    EditorPrefs.SetString(NamingTokenKeyPrefix + capturedName, evt.newValue);
+                    onValueChanged?.Invoke();
+                });
+                row.Add(field);
+
+                container.Add(row);
+            }
+        }
+
+        /// <summary>
+        /// Re-applies localized tooltips on the naming template field and token rows.
+        /// Called from the windows' language-change callbacks.
+        /// </summary>
+        public static void RefreshNamingTooltips(VisualElement root)
+        {
+            var templateField = root.Q<TextField>(className: "naming-template-field");
+            if (templateField != null)
+                templateField.tooltip = Localization.S("common.naming.tooltip");
+
+            var resetBtn = root.Q<Button>(className: "naming-reset-button");
+            if (resetBtn != null)
+                resetBtn.tooltip = Localization.S("common.naming.resetTooltip");
+
+            root.Query<Label>(className: "naming-token-label")
+                .ForEach(l => l.tooltip = Localization.S("common.namingToken.tooltip"));
         }
 
         /// <summary>

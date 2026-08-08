@@ -10,6 +10,15 @@ msgstr "Output Path:"
 msgid "common.naming"
 msgstr "Naming:"
 
+msgid "common.naming.tooltip"
+msgstr "Template for output file names. {BaseName} and {VariantName} are replaced automatically; any other {token} (e.g. {Avatar}) adds an input field below."
+
+msgid "common.naming.resetTooltip"
+msgstr "Reset the naming template to the default ({BaseName}_{VariantName})"
+
+msgid "common.namingToken.tooltip"
+msgstr "Replacement text for this token in output file names (saved for future sessions)"
+
 msgid "common.selectOutputFolder"
 msgstr "Select Output Folder"
 

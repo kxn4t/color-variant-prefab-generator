@@ -120,7 +120,7 @@ Standardモードでは、追加したGameObject配下のRendererがスロット
 1. **Tools > Color Variant Prefab Generator > Batch Generator** を開く
 2. **新しいベースPrefab** にVariantを生成したいベースPrefabを設定する
 3. **カラーバリアント** リストにソースPrefab（既存のカラーバリアント）を追加する — 複数のPrefabをまとめてドラッグ＆ドロップ可能
-4. バリアント名が自動で付けられる — Prefab Variantの場合は親Prefab名との差分から、通常Prefabの場合はファイル名から導出される。鉛筆ボタン（✎）で手動編集も可能
+4. バリアント名が自動で付けられる — Prefab Variantの場合は親Prefab名との差分から、通常Prefabの場合はファイル名から導出される。リスト内の全ソースで共通する名前部分も自動で除去される（例：`衣装_アバター_Black` / `衣装_アバター_White` → `Black` / `White`）。鉛筆ボタン（✎）で手動編集も可能
 5. 各ソースとベースが自動比較され、マテリアルの差分が検出される
 6. **マッチング結果** を確認する — マッチしなかったスロットは警告表示され、ドロップダウンで手動割り当てが可能
 7. 出力パスと命名テンプレートを設定する
@@ -137,10 +137,13 @@ Standardモードでは、追加したGameObject配下のRendererがスロット
 |---|---|
 | `{BaseName}` | ベースPrefabのファイル名（拡張子なし、末尾の`_Base`は自動除去） |
 | `{VariantName}` | 指定したVariant名 |
+| `{任意名}`（例：`{Avatar}`） | ユーザー定義トークン。テンプレートに書くと直下に入力欄が自動で追加され、その入力値で置換される |
 
 デフォルトテンプレート：`{BaseName}_{VariantName}`
 
 例：ベース `Airi_HonmeiKnit` + Variant `Black` → `Airi_HonmeiKnit_Black.prefab`
+
+テンプレートとユーザー定義トークンの値は次回以降も保存され、CV CreatorとBatch Generatorの間で共有されます。
 
 > **ヒント：** Batch Generatorで同名のVariantが複数存在する場合、自動的に `_1`, `_2`, `_3` … のサフィックスが付与されます。  
 > 例：`Black`, `Black`, `Black` → `Airi_HonmeiKnit_Black_1.prefab`, `Airi_HonmeiKnit_Black_2.prefab`, `Airi_HonmeiKnit_Black_3.prefab`

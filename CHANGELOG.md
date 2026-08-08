@@ -12,6 +12,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Custom naming tokens** — The naming template now accepts user-defined `{token}` placeholders (e.g. `{Avatar}`) in addition to `{BaseName}` / `{VariantName}`. Each custom token gets its own input field below the template. The template and token values are saved for future sessions and shared between CV Creator and the Batch Generator. A reset button (↻) next to the template restores the default
+
+### Improved
+
+- **Batch Generator: Variant name auto-derivation** — Variant names are now derived by removing the parent Prefab's name tokens regardless of their position (previously the parent name had to be a strict prefix). In addition, name parts shared by every source in the list are stripped, so color names are extracted even from regular (non-Variant) Prefab sets following conventions like `Outfit_Avatar_Color`
+
+---
+
+### 追加
+
+- **ユーザー定義の命名トークン** — 命名テンプレートで`{BaseName}` / `{VariantName}`に加えて、`{Avatar}`のような任意の`{トークン}`を使用可能に。トークンごとにテンプレート直下へ入力欄が自動生成されます。テンプレートとトークンの値は次回以降も保存され、CV CreatorとBatch Generatorの間で共有されます。テンプレート欄右のリセットボタン（↻）でデフォルトに戻せます
+
+### 改善
+
+- **Batch Generator: バリアント名の自動導出** — 親Prefab名のトークンを位置を問わず除去して導出するように改善（従来は親名が前方一致する場合のみ対応）。さらにリスト内の全ソースで共通する名前部分も除去されるため、`衣装名_アバター名_色名`のような通常Prefab（Variantでない）の色違いセットからも色名部分を自動抽出できます
+
 ## [0.3.0] - 2026-05-10
 
 ### Added
