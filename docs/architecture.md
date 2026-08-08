@@ -18,7 +18,7 @@ Localization層 (Localization.cs — #if CVG_HAS_NDMF で条件分岐)
 
 `PrefabModificationHelper`はStandardモードで構造変更の解析と、Hierarchyインスタンスから新規Variantインスタンスへの修正転写を担当する。
 
-※ `PrefabVariantGenerator`（Core）が`EditorUIUtility`（UI）の純粋ユーティリティ関数（`IsValidOutputPath`, `ResolveFileName`, `NormalizePath`）を使用している。これらはUI非依存の関数だが、コード配置上はUI層に属する。
+※ `PrefabVariantGenerator`（Core）が`EditorUIUtility`（UI）のユーティリティ関数（`IsValidOutputPath`, `ResolveFileName`, `NormalizePath`）を使用している。これらはUI非依存の関数だが、コード配置上はUI層に属する。`ResolveFileName`はユーザー定義トークン（`{Avatar}`等）の解決にEditorPrefsを参照する。
 
 ---
 

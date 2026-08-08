@@ -161,7 +161,7 @@ namespace Kanameliser.ColorVariantGenerator
             if (prefab != null)
             {
                 entry.variantPrefab = prefab;
-                OnVariantChanged(entry);
+                OnVariantChanged();
             }
         }
 
@@ -226,7 +226,7 @@ namespace Kanameliser.ColorVariantGenerator
             field.RegisterValueChangedCallback(evt =>
             {
                 entry.variantPrefab = evt.newValue as GameObject;
-                OnVariantChanged(entry);
+                OnVariantChanged();
             });
             row.Add(field);
         }
@@ -239,6 +239,7 @@ namespace Kanameliser.ColorVariantGenerator
                 _variantListContainer.Remove(row);
                 UpdateVariantListPlaceholder();
                 UpdateVariantRowBorders();
+                RecomputeAutoVariantNames();
                 RunAllMatching();
                 UpdateGenerateButtonState();
             })
@@ -279,55 +280,71 @@ namespace Kanameliser.ColorVariantGenerator
             }
         }
 
-        private void OnVariantChanged(VariantEntry entry)
+        private void OnVariantChanged()
         {
-            int index = _variantEntries.IndexOf(entry);
-            VisualElement row = (index >= 0 && index < _variantListContainer.childCount)
-                ? _variantListContainer[index] : null;
-
-            if (entry.variantPrefab != null)
-            {
-                // Derive variant name from the prefab hierarchy:
-                // If it's a variant of another prefab, strip the parent name (e.g. "Avatar_Black" → "Black").
-                // Otherwise, use the full prefab name as the variant name.
-                var parent = PrefabUtility.GetCorrespondingObjectFromSource(entry.variantPrefab);
-                if (parent != null && parent != entry.variantPrefab)
-                {
-                    entry.autoVariantName = VariantAnalyzer.DeriveVariantName(parent.name, entry.variantPrefab.name);
-                }
-                else
-                {
-                    entry.autoVariantName = entry.variantPrefab.name;
-                }
-
-                // Clear stale customVariantName so EffectiveVariantName falls back to autoVariantName
-                if (!entry.isNameManuallyEdited)
-                {
-                    entry.customVariantName = null;
-                }
-
-                if (row != null)
-                {
-                    var nameLabel = row.Q<Label>(className: "variant-name-label");
-                    if (nameLabel != null)
-                    {
-                        nameLabel.text = entry.EffectiveVariantName;
-                    }
-                }
-            }
-            else
-            {
-                entry.autoVariantName = null;
-                if (row != null)
-                {
-                    var nameLabel = row.Q<Label>(className: "variant-name-label");
-                    if (nameLabel != null) nameLabel.text = "";
-                }
-            }
+            RecomputeAutoVariantNames();
 
             // Run matching (override count label is updated in RefreshMatchResultsUI)
             RunAllMatching();
             UpdateGenerateButtonState();
+        }
+
+        /// <summary>
+        /// Recomputes the auto-derived variant name for every entry.
+        /// Per entry: if the prefab is a Prefab Variant, remove the parent prefab's name tokens;
+        /// otherwise start from the full prefab name. Then strip token sequences shared by all
+        /// entries, which extracts the color part from standalone (non-Variant) prefab sets
+        /// following conventions like "Outfit_Avatar_Color". Manually edited names are preserved.
+        /// </summary>
+        private void RecomputeAutoVariantNames()
+        {
+            var candidates = new List<string>();
+            var candidateEntries = new List<VariantEntry>();
+
+            foreach (var entry in _variantEntries)
+            {
+                if (entry.variantPrefab == null)
+                {
+                    entry.autoVariantName = null;
+                    continue;
+                }
+
+                var parent = PrefabUtility.GetCorrespondingObjectFromSource(entry.variantPrefab);
+                string candidate = parent != null && parent != entry.variantPrefab
+                    ? VariantAnalyzer.DeriveVariantName(parent.name, entry.variantPrefab.name)
+                    : entry.variantPrefab.name;
+
+                candidates.Add(candidate);
+                candidateEntries.Add(entry);
+            }
+
+            var stripped = VariantAnalyzer.StripCommonAffixTokens(candidates);
+            for (int i = 0; i < candidateEntries.Count; i++)
+            {
+                candidateEntries[i].autoVariantName = stripped[i];
+
+                // Clear stale customVariantName so EffectiveVariantName falls back to autoVariantName
+                if (!candidateEntries[i].isNameManuallyEdited)
+                {
+                    candidateEntries[i].customVariantName = null;
+                }
+            }
+
+            RefreshVariantNameLabels();
+        }
+
+        private void RefreshVariantNameLabels()
+        {
+            for (int i = 0; i < _variantEntries.Count && i < _variantListContainer.childCount; i++)
+            {
+                var nameLabel = _variantListContainer[i].Q<Label>(className: "variant-name-label");
+                if (nameLabel != null)
+                {
+                    nameLabel.text = _variantEntries[i].variantPrefab != null
+                        ? _variantEntries[i].EffectiveVariantName
+                        : "";
+                }
+            }
         }
     }
 }

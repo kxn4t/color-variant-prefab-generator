@@ -159,6 +159,7 @@ namespace Kanameliser.ColorVariantGenerator
                     w._includePropertyChangesToggle.label = Localization.S("creator.standard.includePropertyChanges");
                     w._includePropertyChangesToggle.tooltip = Localization.S("creator.standard.includePropertyChanges:tooltip");
                 }
+                EditorUIUtility.RefreshNamingTooltips(w.rootVisualElement);
             });
         }
 

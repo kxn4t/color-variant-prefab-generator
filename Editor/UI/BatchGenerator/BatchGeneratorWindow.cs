@@ -105,6 +105,7 @@ namespace Kanameliser.ColorVariantGenerator
                 w.UpdateVariantOverrideLabels();
                 w.UpdateVariantRowTooltips();
                 w._newBasePrefabField.tooltip = Localization.S("batch.basePrefabField.tooltip");
+                EditorUIUtility.RefreshNamingTooltips(w.rootVisualElement);
             });
         }
 

@@ -234,7 +234,7 @@ Base Prefab (Hierarchy Instance)
 
 **各行のレイアウト**: `[バリアント名 (Label)] [✎] [ObjectField] [N overrides] [×]`
 
-- バリアント名の自動導出: Variantなら親名から`DeriveVariantName()`、通常PrefabならPrefab名をそのまま使用
+- バリアント名の自動導出: Variantなら親Prefab名に含まれるトークンを位置を問わず除去（`DeriveVariantName()`）、通常PrefabならPrefab名をそのまま候補とする。さらに全エントリーで共通する先頭・末尾のトークン列を除去（`StripCommonAffixTokens()`）するため、`衣装名_アバター名_色名`のような通常Prefab群からも色名部分を抽出できる
 - ✎ボタンで手動編集可能。手動編集後は自動導出を無効化。
 
 ### マッチング結果UI
@@ -273,5 +273,8 @@ Base Prefab (Hierarchy Instance)
 |---|---|
 | `{BaseName}` | ベースPrefabのファイル名（拡張子なし、末尾の`_Base`は自動除去） |
 | `{VariantName}` | ユーザーが指定したバリアント名 |
+| `{任意名}`（例: `{Avatar}`） | ユーザー定義トークン。テンプレートに書くと直下に入力欄が自動生成され、その入力値で置換される |
 
 デフォルト: `{BaseName}_{VariantName}` — 例: `Airi_HonmeiKnit` + `Black` → `Airi_HonmeiKnit_Black.prefab`
+
+テンプレートとユーザー定義トークンの値はEditorPrefsで永続化され、CreatorとBatch Generatorの間で共有される。テンプレート欄右のリセットボタン（↻）でデフォルトに戻せる。

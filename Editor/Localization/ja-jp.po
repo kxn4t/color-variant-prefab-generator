@@ -10,6 +10,15 @@ msgstr "出力先:"
 msgid "common.naming"
 msgstr "命名規則:"
 
+msgid "common.naming.tooltip"
+msgstr "出力ファイル名のテンプレート。{BaseName}と{VariantName}は自動で置換されます。それ以外の{トークン}（例: {Avatar}）を書くと下に入力欄が追加されます。"
+
+msgid "common.naming.resetTooltip"
+msgstr "命名テンプレートをデフォルト（{BaseName}_{VariantName}）に戻します"
+
+msgid "common.namingToken.tooltip"
+msgstr "出力ファイル名のこのトークン部分に置き換わるテキスト（次回以降も保存されます）"
+
 msgid "common.selectOutputFolder"
 msgstr "出力フォルダーを選択"
 
