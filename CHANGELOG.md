@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0-beta.1] - 2026-08-09
+
 ### Added
 
 - **Custom naming tokens** — The naming template now accepts user-defined `{token}` placeholders (e.g. `{Avatar}`) in addition to `{BaseName}` / `{VariantName}`. Each custom token gets its own input field below the template. The template and token values are saved for future sessions and shared between CV Creator and the Batch Generator. A reset button (↻) next to the template restores the default
