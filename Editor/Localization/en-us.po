@@ -60,6 +60,10 @@ msgstr "Files Exist"
 msgid "common.filesExist.message"
 msgstr "The following files already exist and will be overwritten:\n\n{0}"
 
+#, csharp-format
+msgid "common.error.outputOverwritesBasePrefab"
+msgstr "The output would overwrite the base Prefab or one of its parent Prefabs:\n\n{0}\n\nOverwriting it would rewrite that Prefab itself instead of creating a Variant, affecting every Variant derived from it. Change the variant name, naming template, or output path."
+
 # ── Creator ──
 
 msgid "creator.basePrefab"

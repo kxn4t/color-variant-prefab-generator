@@ -60,6 +60,10 @@ msgstr "ファイルが存在します"
 msgid "common.filesExist.message"
 msgstr "以下のファイルは既に存在するため、上書きされます:\n\n{0}"
 
+#, csharp-format
+msgid "common.error.outputOverwritesBasePrefab"
+msgstr "出力先がベースPrefabまたはその親Prefabと同じファイルです:\n\n{0}\n\n上書きするとVariantは作成されず、そのPrefab自体が書き換わるため、派生するすべてのVariantに影響します。Variant名、命名規則、出力先のいずれかを変更してください。"
+
 # ── Creator ──
 
 msgid "creator.basePrefab"

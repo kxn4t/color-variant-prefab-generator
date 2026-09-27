@@ -36,6 +36,11 @@ namespace Kanameliser.ColorVariantGenerator
                 }
 
                 string fullPath = ComputeOutputPath(basePrefabAsset.name, variantName, outputPath, namingTemplate);
+                if (IsPrefabOrAncestorPath(basePrefabAsset, fullPath))
+                {
+                    result.errorMessage = BuildOverwritesParentError(fullPath);
+                    return result;
+                }
                 EnsureDirectoryExists(fullPath);
 
                 var instance = PrefabUtility.InstantiatePrefab(basePrefabAsset) as GameObject;
@@ -91,6 +96,11 @@ namespace Kanameliser.ColorVariantGenerator
 
                 string fullPath = ComputeOutputPath(
                     request.basePrefabAsset.name, request.variantName, request.outputPath, request.namingTemplate);
+                if (IsPrefabOrAncestorPath(request.basePrefabAsset, fullPath))
+                {
+                    result.errorMessage = BuildOverwritesParentError(fullPath);
+                    return result;
+                }
                 EnsureDirectoryExists(fullPath);
 
                 var options = request.options ?? new StandardModeOptions();
@@ -306,8 +316,42 @@ namespace Kanameliser.ColorVariantGenerator
         /// </summary>
         private static string ComputeOutputPath(string baseName, string variantName, string outputPath, string namingTemplate)
         {
-            string variantFileName = EditorUIUtility.ResolveFileName(namingTemplate, baseName, variantName);
-            return EditorUIUtility.NormalizePath(Path.Combine(outputPath, variantFileName + ".prefab"));
+            return EditorUIUtility.ResolveOutputFilePath(outputPath, namingTemplate, baseName, variantName);
+        }
+
+        /// <summary>
+        /// Returns true when <paramref name="outputFilePath"/> points at <paramref name="prefabAsset"/>
+        /// itself or any Prefab it derives from (Variant parents up to the root).
+        /// SaveAsPrefabAsset onto one of these paths does not create a Variant — it rewrites
+        /// that Prefab in place, which propagates to every Variant derived from it.
+        /// </summary>
+        public static bool IsPrefabOrAncestorPath(GameObject prefabAsset, string outputFilePath)
+        {
+            if (prefabAsset == null || string.IsNullOrEmpty(outputFilePath)) return false;
+
+            // GetFullPath collapses "..", duplicate separators and slash differences; the
+            // comparison ignores case because asset paths are case-insensitive on Windows.
+            string target = Path.GetFullPath(outputFilePath);
+            var visited = new HashSet<GameObject>();
+            for (var current = prefabAsset;
+                 current != null && visited.Add(current);
+                 current = PrefabUtility.GetCorrespondingObjectFromSource(current))
+            {
+                string assetPath = AssetDatabase.GetAssetPath(current);
+                if (!string.IsNullOrEmpty(assetPath)
+                    && string.Equals(Path.GetFullPath(assetPath), target, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private static string BuildOverwritesParentError(string fullPath)
+        {
+            return $"Output path '{fullPath}' is the parent Prefab or one of its ancestors. " +
+                   "Overwriting it would rewrite that Prefab instead of creating a Variant. " +
+                   "Change the variant name, naming template, or output path.";
         }
 
         private static void EnsureDirectoryExists(string fullPath)

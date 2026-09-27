@@ -217,6 +217,7 @@ Base Prefab (Hierarchy Instance)
 
 - **Variant Parent**: ベースPrefabが多段Variantの場合に表示。祖先チェーンから親を選択可能。直接親以外を選んだ場合、祖先に対する最終状態の差分としてマテリアルオーバーライドが自動再計算される。`{BaseName}`は選択した親のPrefab名に追従。**Standardモードでは直接親に固定される**（祖先に張り替えると中間Variantの構造差分が保持できないため）。
 - **Variant Name / Output Path / Naming Template / Output Preview**: 標準の出力設定
+- **ベースPrefab・祖先への上書き禁止**: 出力先がBase Prefab自身またはその祖先（選択したVariant Parentとそれより上）と同じファイルになる場合、エラーダイアログを表示して生成を中止する（上書きするとVariantではなくそのPrefab自体が書き換わるため）。それ以外の既存ファイルは上書き確認ダイアログを経て上書き可能
 - 成功時: 次アクション選択ダイアログ（Keep Current Overrides / Clear Overrides）
 
 ---
@@ -262,6 +263,7 @@ Base Prefab (Hierarchy Instance)
 
 - **Output Path / Naming Template**: 標準の出力設定
 - **同名バリアント自動採番**: バッチ内の重複に`_1`, `_2`, `_3` …サフィックスを付与（一意な名前はそのまま）
+- **ベースPrefab・祖先への上書き禁止**: いずれかの出力先がベースPrefab (A) 自身またはその祖先と同じファイルになる場合、該当ファイルを一覧表示して生成全体を中止する
 - **「マテリアル差分がないVariantも作成する」トグル**: ベースPrefabを別フォルダーに分けて管理したい場合に有用
 - プログレスバー付き一括生成 + 完了サマリーダイアログ
 
