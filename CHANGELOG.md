@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-09-28
+
 ### Fixed
 
 - **Prevent overwriting the base Prefab** — Generation is now refused when the output file would be the base Prefab itself or one of its parent Prefabs (e.g. a naming template without `{VariantName}`). Previously, confirming the "File Exists" dialog rewrote that Prefab in place instead of creating a Variant, which also changed every Variant derived from it
