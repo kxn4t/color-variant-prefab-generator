@@ -174,6 +174,14 @@ namespace Kanameliser.ColorVariantGenerator
             if (outputPath == null)
                 return;
 
+            // Check against _basePrefabAsset's chain rather than effectiveParent's: it covers the
+            // selected parent and its ancestors, plus the loaded base Prefab itself when an
+            // ancestor is selected as the Variant Parent.
+            string outputFilePath = EditorUIUtility.ResolveOutputFilePath(
+                outputPath, namingTemplate, effectiveParent.name, variantName);
+            if (!EditorUIUtility.ValidateOutputDoesNotOverwriteBase(_basePrefabAsset, new[] { outputFilePath }))
+                return;
+
             if (!EditorUIUtility.ConfirmSingleFileOverwrite(outputPath, namingTemplate, effectiveParent.name, variantName))
                 return;
 

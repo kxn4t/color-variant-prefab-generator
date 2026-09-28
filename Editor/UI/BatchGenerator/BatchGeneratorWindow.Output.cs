@@ -155,6 +155,11 @@ namespace Kanameliser.ColorVariantGenerator
             if (variants == null)
                 return;
 
+            var outputFilePaths = variants.Select(v => EditorUIUtility.ResolveOutputFilePath(
+                outputPath, namingTemplate, _newBasePrefab.name, v.variantName));
+            if (!EditorUIUtility.ValidateOutputDoesNotOverwriteBase(_newBasePrefab, outputFilePaths))
+                return;
+
             if (!ConfirmBatchFileOverwrites(variants, outputPath, namingTemplate))
                 return;
 
@@ -243,8 +248,7 @@ namespace Kanameliser.ColorVariantGenerator
             foreach (var (variantName, _) in variants)
             {
                 string fileName = EditorUIUtility.ResolveFileName(namingTemplate, baseName, variantName);
-                string fullPath = EditorUIUtility.NormalizePath(
-                    Path.Combine(outputPath, fileName + ".prefab"));
+                string fullPath = EditorUIUtility.ResolveOutputFilePath(outputPath, namingTemplate, baseName, variantName);
                 if (File.Exists(fullPath))
                 {
                     existingFiles.Add(fileName + ".prefab");

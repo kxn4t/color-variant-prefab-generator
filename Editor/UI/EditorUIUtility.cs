@@ -76,6 +76,15 @@ namespace Kanameliser.ColorVariantGenerator
         }
 
         /// <summary>
+        /// Resolves the asset path a variant will be written to (output folder + resolved file name).
+        /// </summary>
+        public static string ResolveOutputFilePath(string outputPath, string namingTemplate, string baseName, string variantName)
+        {
+            string fileName = ResolveFileName(namingTemplate, baseName, variantName);
+            return NormalizePath(Path.Combine(outputPath, fileName + ".prefab"));
+        }
+
+        /// <summary>
         /// Returns the persisted value for a user-defined naming token (empty string when unset).
         /// </summary>
         public static string GetNamingTokenValue(string tokenName)
@@ -400,7 +409,7 @@ namespace Kanameliser.ColorVariantGenerator
         public static bool ConfirmSingleFileOverwrite(string outputPath, string namingTemplate, string baseName, string variantName)
         {
             string fileName = ResolveFileName(namingTemplate, baseName, variantName);
-            string fullPath = NormalizePath(Path.Combine(outputPath, fileName + ".prefab"));
+            string fullPath = ResolveOutputFilePath(outputPath, namingTemplate, baseName, variantName);
 
             if (File.Exists(fullPath))
             {
@@ -411,6 +420,31 @@ namespace Kanameliser.ColorVariantGenerator
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// Rejects output paths that point at <paramref name="basePrefab"/> or one of its ancestor
+        /// Prefabs, showing an error dialog listing the offending files. Returns true if it's safe
+        /// to proceed. Must run before the overwrite confirmation, which would otherwise offer to
+        /// rewrite the Prefab in place.
+        /// </summary>
+        public static bool ValidateOutputDoesNotOverwriteBase(GameObject basePrefab, IEnumerable<string> outputFilePaths)
+        {
+            var collisions = new List<string>();
+            foreach (var path in outputFilePaths)
+            {
+                if (!PrefabVariantGenerator.IsPrefabOrAncestorPath(basePrefab, path)) continue;
+                string fileName = Path.GetFileName(path);
+                if (!collisions.Contains(fileName)) collisions.Add(fileName);
+            }
+
+            if (collisions.Count == 0) return true;
+
+            EditorUtility.DisplayDialog(
+                Localization.S("common.error"),
+                Localization.S("common.error.outputOverwritesBasePrefab", string.Join("\n", collisions)),
+                "OK");
+            return false;
         }
     }
 }
